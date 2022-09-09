@@ -59,3 +59,22 @@ int crypto_init_public_key(cx_ecfp_private_key_t *private_key,
  *
  */
 int crypto_sign_message(void);
+
+/**
+ * Derive private key given EIP-2645 path.
+ *
+ * @param[out] private_key
+ *   Pointer to private key.
+ * @param[in]  bip32_path
+ *   Pointer to buffer with BIP32 path.
+ * @param[in]  bip32_path_len
+ *   Number of path in BIP32 path.
+ *
+ * @return 0 if success, -1 otherwise.
+ *
+ * @throw INVALID_PARAMETER
+ *
+ */
+int eip2645_derive_private_key(cx_ecfp_private_key_t *private_key,
+                              const uint32_t *bip32_path,
+                              uint8_t bip32_path_len);

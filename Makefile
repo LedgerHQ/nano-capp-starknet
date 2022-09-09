@@ -27,13 +27,13 @@ APP_LOAD_PARAMS=--appFlags 0x200  # APPLICATION_FLAG_BOLOS_SETTINGS
 else
 APP_LOAD_PARAMS=--appFlags 0x000
 endif
-APP_LOAD_PARAMS += --path "44'"
+APP_LOAD_PARAMS += --path "2645'"
 APP_LOAD_PARAMS += $(COMMON_LOAD_PARAMS)
 
-APPNAME      = "Boilerplate"
-APPVERSION_M = 1
-APPVERSION_N = 0
-APPVERSION_P = 1
+APPNAME      = "STARKNET"
+APPVERSION_M = 0
+APPVERSION_N = 1
+APPVERSION_P = 0
 APPVERSION   = "$(APPVERSION_M).$(APPVERSION_N).$(APPVERSION_P)"
 
 ifeq ($(TARGET_NAME),TARGET_NANOS)
@@ -55,6 +55,9 @@ DEFINES += USB_SEGMENT_SIZE=64
 DEFINES += BLE_SEGMENT_SIZE=32
 DEFINES += HAVE_WEBUSB WEBUSB_URL_SIZE_B=0 WEBUSB_URL=""
 DEFINES += UNUSED\(x\)=\(void\)x
+
+# Lock derivation path to EIP-2645 only
+DEFINES += STARK_BIP32_PATH_0=0x80000A55
 
 ifeq ($(TARGET_NAME),TARGET_NANOX)
     DEFINES += HAVE_BLE BLE_COMMAND_TIMEOUT_MS=2000 HAVE_BLE_APDU
@@ -114,10 +117,10 @@ ifeq ($(TARGET_NAME),TARGET_NANOX)
     SDK_SOURCE_PATH += lib_blewbxx lib_blewbxx_impl
 endif
 
-load: all
+load: 
 	python3 -m ledgerblue.loadApp $(APP_LOAD_PARAMS)
 
-load-offline: all
+load-offline:
 	python3 -m ledgerblue.loadApp $(APP_LOAD_PARAMS) --offline
 
 delete:

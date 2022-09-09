@@ -40,6 +40,7 @@ static action_validate_cb g_validate_callback;
 static char g_amount[30];
 static char g_bip32_path[60];
 static char g_address[43];
+static char g_hash[68];
 
 // Step with icon and text
 UX_STEP_NOCB(ux_display_confirm_addr_step, pn, {&C_icon_eye, "Confirm Address"});
@@ -121,7 +122,7 @@ UX_STEP_NOCB(ux_display_review_step,
              {
                  &C_icon_eye,
                  "Review",
-                 "Transaction",
+                 "Hash",
              });
 // Step with title/text for amount
 UX_STEP_NOCB(ux_display_amount_step,
@@ -170,3 +171,40 @@ int ui_display_transaction() {
 
     return 0;
 }
+
+// Step with title/text for amount
+UX_STEP_NOCB(ux_display_hash_step,
+             bnnn_paging,
+             {
+                 .title = "Hash",
+                 .text = g_hash,
+             });
+
+// FLOW to display hash information:
+// #1 screen : eye icon + "Review Hash"
+// #2 screen : display hash
+// #3 screen : approve button
+// #4 screen : reject button
+UX_FLOW(ux_display_hash_flow,
+        &ux_display_review_step,
+        &ux_display_hash_step,
+        &ux_display_approve_step,
+        &ux_display_reject_step);
+
+int ui_display_hash() {
+    if (G_context.req_type != CONFIRM_HASH || G_context.state != STATE_PARSED) {
+        G_context.state = STATE_NONE;
+        return io_send_sw(SW_BAD_STATE);
+    }
+
+    memset(g_hash, 0, sizeof(g_hash));
+    snprintf(g_hash, sizeof(g_hash), "0x%.*H", 32, G_context.hash_info.m_hash);
+
+    g_validate_callback = &ui_action_validate_hash;
+
+    ux_flow_init(0, ux_display_hash_flow, NULL);
+
+    return 0;
+}
+
+

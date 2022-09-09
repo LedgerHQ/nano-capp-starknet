@@ -41,18 +41,24 @@ int handler_get_public_key(buffer_t *cdata, bool display) {
     cx_ecfp_private_key_t private_key = {0};
     cx_ecfp_public_key_t public_key = {0};
 
+
     if (!buffer_read_u8(cdata, &G_context.bip32_path_len) ||
         !buffer_read_bip32_path(cdata, G_context.bip32_path, (size_t) G_context.bip32_path_len)) {
         return io_send_sw(SW_WRONG_DATA_LENGTH);
     }
 
-    // derive private key according to BIP32 path
-    crypto_derive_private_key(&private_key,
-                              G_context.pk_info.chain_code,
+    // derive private key according to EIP-2645
+    eip2645_derive_private_key(&private_key,
                               G_context.bip32_path,
                               G_context.bip32_path_len);
+
+    PRINTF("EIP-2645 OK\n");
+
     // generate corresponding public key
     crypto_init_public_key(&private_key, &public_key, G_context.pk_info.raw_public_key);
+
+    PRINTF("PUB KEY GENERATION OK\n");
+
     // reset private key
     explicit_bzero(&private_key, sizeof(private_key));
 

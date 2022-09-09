@@ -23,7 +23,8 @@ typedef enum {
     GET_VERSION = 0x03,     /// version of the application
     GET_APP_NAME = 0x04,    /// name of the application
     GET_PUBLIC_KEY = 0x05,  /// public key of corresponding BIP32 path
-    SIGN_TX = 0x06          /// sign transaction with BIP32 path
+    SIGN_TX = 0x06,          /// sign transaction with BIP32 path
+    SIGN_HASH = 0x07
 } command_e;
 
 /**
@@ -52,6 +53,7 @@ typedef enum {
  */
 typedef enum {
     CONFIRM_ADDRESS,     /// confirm address derived from public key
+    CONFIRM_HASH,
     CONFIRM_TRANSACTION  /// confirm transaction information
 } request_type_e;
 
@@ -77,12 +79,23 @@ typedef struct {
 } transaction_ctx_t;
 
 /**
+ * Structure for hash information context.
+ */
+typedef struct {
+    uint8_t m_hash[32];                   /// message hash digest (Pedersen)
+    uint8_t signature[MAX_DER_SIG_LEN];   /// transaction signature encoded in DER
+    uint8_t signature_len;                /// length of transaction signature
+    uint8_t v;                            /// parity of y-coordinate of R in ECDSA signature
+} hash_ctx_t;
+
+/**
  * Structure for global context.
  */
 typedef struct {
     state_e state;  /// state of the context
     union {
         pubkey_ctx_t pk_info;       /// public key context
+        hash_ctx_t hash_info;       /// hash context
         transaction_ctx_t tx_info;  /// transaction context
     };
     request_type_e req_type;              /// user request

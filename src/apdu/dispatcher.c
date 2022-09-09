@@ -29,6 +29,7 @@
 #include "../handler/get_app_name.h"
 #include "../handler/get_public_key.h"
 #include "../handler/sign_tx.h"
+#include "../handler/sign_hash.h"
 
 int apdu_dispatcher(const command_t *cmd) {
     if (cmd->cla != CLA) {
@@ -64,6 +65,20 @@ int apdu_dispatcher(const command_t *cmd) {
             buf.offset = 0;
 
             return handler_get_public_key(&buf, (bool) cmd->p1);
+        case SIGN_HASH:
+            if (cmd->p1 > 1) {
+                return io_send_sw(SW_WRONG_P1P2);
+            }
+
+            if (!cmd->data) {
+                return io_send_sw(SW_WRONG_DATA_LENGTH);
+            }
+
+            buf.ptr = cmd->data;
+            buf.size = cmd->lc;
+            buf.offset = 0;
+
+            return handler_sign_hash(&buf, cmd->p1);
         case SIGN_TX:
             if ((cmd->p1 == P1_START && cmd->p2 != P2_MORE) ||  //
                 cmd->p1 > P1_MAX ||                             //

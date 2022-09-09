@@ -26,28 +26,49 @@
 #include "common/buffer.h"
 
 int helper_send_response_pubkey() {
-    uint8_t resp[1 + 1 + PUBKEY_LEN + 1 + CHAINCODE_LEN] = {0};
+    uint8_t resp[1 + 1 + PUBKEY_LEN] = {0};
     size_t offset = 0;
 
     resp[offset++] = PUBKEY_LEN + 1;
     resp[offset++] = 0x04;
     memmove(resp + offset, G_context.pk_info.raw_public_key, PUBKEY_LEN);
     offset += PUBKEY_LEN;
-    resp[offset++] = CHAINCODE_LEN;
-    memmove(resp + offset, G_context.pk_info.chain_code, CHAINCODE_LEN);
-    offset += CHAINCODE_LEN;
 
     return io_send_response(&(const buffer_t){.ptr = resp, .size = offset, .offset = 0}, SW_OK);
 }
 
+// Convert signature format from DER to (r,s)
+static void format_signature_out(const uint8_t *der_signature, uint8_t* signature) {
+    uint8_t offset = 1;
+    uint8_t xoffset = 4;  // point to r value
+    // copy r
+    uint8_t xlength = der_signature[xoffset - 1];
+    if (xlength == 33) {
+        xlength = 32;
+        xoffset++;
+    }
+    memmove(signature + offset + 32 - xlength, der_signature + xoffset, xlength);
+    offset += 32;
+    xoffset += xlength + 2;  // move over rvalue and TagLEn
+    // copy s value
+    xlength = der_signature[xoffset - 1];
+    if (xlength == 33) {
+        xlength = 32;
+        xoffset++;
+    }
+    memmove(signature + offset + 32 - xlength, der_signature + xoffset, xlength);
+}
+
 int helper_send_response_sig() {
-    uint8_t resp[1 + MAX_DER_SIG_LEN + 1] = {0};
+    uint8_t resp[1 + 64 + 1] = {0};
     size_t offset = 0;
 
-    resp[offset++] = G_context.tx_info.signature_len;
-    memmove(resp + offset, G_context.tx_info.signature, G_context.tx_info.signature_len);
-    offset += G_context.tx_info.signature_len;
-    resp[offset++] = (uint8_t) G_context.tx_info.v;
+    resp[offset++] = 64;
+
+    format_signature_out(G_context.hash_info.signature, resp);
+
+    offset += 64;
+    resp[offset++] = (uint8_t) G_context.hash_info.v;
 
     return io_send_response(&(const buffer_t){.ptr = resp, .size = offset, .offset = 0}, SW_OK);
 }
