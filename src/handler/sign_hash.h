@@ -18,4 +18,4 @@
  * @return zero or positive integer if success, negative integer otherwise.
  *
  */
-int handler_sign_hash(buffer_t *cdata, uint8_t chunk);
+int handler_sign_hash(buffer_t *cdata, uint8_t chunk, bool display);

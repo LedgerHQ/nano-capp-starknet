@@ -33,7 +33,7 @@
 #include "../ui/display.h"
 #include "../helper/send_response.h"
 
-int handler_sign_hash(buffer_t *cdata, uint8_t chunk) {
+int handler_sign_hash(buffer_t *cdata, uint8_t chunk, bool display) {
     if (chunk == 0) {  // first APDU, parse BIP32 path
         explicit_bzero(&G_context, sizeof(G_context));
         G_context.req_type = CONFIRM_HASH;
@@ -61,8 +61,17 @@ int handler_sign_hash(buffer_t *cdata, uint8_t chunk) {
 
         PRINTF("Hash: %.*H\n", sizeof(G_context.hash_info.m_hash), G_context.hash_info.m_hash);
 
-        return ui_display_hash();
-    }
+        if (display) 
+            return ui_display_hash();
+        else {
+            G_context.state = STATE_APPROVED;
 
-    return 0;
+            if (crypto_sign_message() < 0) {
+                G_context.state = STATE_NONE;
+                return io_send_sw(SW_SIGNATURE_FAIL);
+            } else {
+                return helper_send_response_sig();
+            }
+        }
+    }
 }

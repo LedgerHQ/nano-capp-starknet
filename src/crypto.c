@@ -80,7 +80,6 @@ int crypto_init_public_key(cx_ecfp_private_key_t *private_key,
 
 int crypto_sign_message() {
     cx_ecfp_private_key_t private_key = {0};
-    uint8_t chain_code[32] = {0};
     uint32_t info = 0;
     int sig_len = 0;
 

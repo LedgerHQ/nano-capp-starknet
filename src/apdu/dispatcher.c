@@ -66,7 +66,7 @@ int apdu_dispatcher(const command_t *cmd) {
 
             return handler_get_public_key(&buf, (bool) cmd->p1);
         case SIGN_HASH:
-            if (cmd->p1 > 1) {
+            if ((cmd->p1 > 2) || (cmd->p2 > 1)) {
                 return io_send_sw(SW_WRONG_P1P2);
             }
 
@@ -78,7 +78,7 @@ int apdu_dispatcher(const command_t *cmd) {
             buf.size = cmd->lc;
             buf.offset = 0;
 
-            return handler_sign_hash(&buf, cmd->p1);
+            return handler_sign_hash(&buf, cmd->p1, (cmd->p2 > 0 ? true:false));
         case SIGN_TX:
             if ((cmd->p1 == P1_START && cmd->p2 != P2_MORE) ||  //
                 cmd->p1 > P1_MAX ||                             //

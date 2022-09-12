@@ -1,9 +1,9 @@
 #pragma once
 
 /**
- * Instruction class of the Boilerplate application.
+ * Instruction class of the Starknet application.
  */
-#define CLA 0xE0
+#define CLA 0x5A
 
 /**
  * Length of APPNAME variable in the Makefile.
