@@ -1,4 +1,4 @@
-# Ledger Boilerplate Application
+# Ledger Starknet Application
 
 This is a boilerplate application which can be forked to start a new project for the Ledger Nano S/X.
 
