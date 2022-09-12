@@ -39,11 +39,12 @@
 static action_validate_cb g_validate_callback;
 static char g_amount[30];
 static char g_bip32_path[60];
+static char g_pubkey[134];
 static char g_address[43];
 static char g_hash[68];
 
 // Step with icon and text
-UX_STEP_NOCB(ux_display_confirm_addr_step, pn, {&C_icon_eye, "Confirm Address"});
+UX_STEP_NOCB(ux_display_confirm_pubkey_step, pn, {&C_icon_eye, "Confirm Pubkey"});
 // Step with title/text for BIP32 path
 UX_STEP_NOCB(ux_display_path_step,
              bnnn_paging,
@@ -52,11 +53,11 @@ UX_STEP_NOCB(ux_display_path_step,
                  .text = g_bip32_path,
              });
 // Step with title/text for address
-UX_STEP_NOCB(ux_display_address_step,
+UX_STEP_NOCB(ux_display_pubkey_step,
              bnnn_paging,
              {
-                 .title = "Address",
-                 .text = g_address,
+                 .title = "Pubkey",
+                 .text = g_pubkey,
              });
 // Step with approve button
 UX_STEP_CB(ux_display_approve_step,
@@ -76,19 +77,19 @@ UX_STEP_CB(ux_display_reject_step,
            });
 
 // FLOW to display address and BIP32 path:
-// #1 screen: eye icon + "Confirm Address"
+// #1 screen: eye icon + "Confirm Pubkey"
 // #2 screen: display BIP32 Path
-// #3 screen: display address
+// #3 screen: display pubkey
 // #4 screen: approve button
 // #5 screen: reject button
 UX_FLOW(ux_display_pubkey_flow,
-        &ux_display_confirm_addr_step,
+        &ux_display_confirm_pubkey_step,
         &ux_display_path_step,
-        &ux_display_address_step,
+        &ux_display_pubkey_step,
         &ux_display_approve_step,
         &ux_display_reject_step);
 
-int ui_display_address() {
+int ui_display_pubkey() {
     if (G_context.req_type != CONFIRM_ADDRESS || G_context.state != STATE_NONE) {
         G_context.state = STATE_NONE;
         return io_send_sw(SW_BAD_STATE);
@@ -102,12 +103,12 @@ int ui_display_address() {
         return io_send_sw(SW_DISPLAY_BIP32_PATH_FAIL);
     }
 
-    memset(g_address, 0, sizeof(g_address));
-    uint8_t address[ADDRESS_LEN] = {0};
+    memset(g_pubkey, 0, sizeof(g_pubkey));
+    /*uint8_t address[ADDRESS_LEN] = {0};
     if (!address_from_pubkey(G_context.pk_info.raw_public_key, address, sizeof(address))) {
         return io_send_sw(SW_DISPLAY_ADDRESS_FAIL);
-    }
-    snprintf(g_address, sizeof(g_address), "0x%.*H", sizeof(address), address);
+    }*/
+    snprintf(g_pubkey, sizeof(g_pubkey), "0x04%.*H", 64, G_context.pk_info.raw_public_key);
 
     g_validate_callback = &ui_action_validate_pubkey;
 
@@ -140,7 +141,7 @@ UX_STEP_NOCB(ux_display_amount_step,
 // #5 screen : reject button
 UX_FLOW(ux_display_transaction_flow,
         &ux_display_review_step,
-        &ux_display_address_step,
+        &ux_display_pubkey_step,
         &ux_display_amount_step,
         &ux_display_approve_step,
         &ux_display_reject_step);

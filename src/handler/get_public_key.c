@@ -63,7 +63,7 @@ int handler_get_public_key(buffer_t *cdata, bool display) {
     explicit_bzero(&private_key, sizeof(private_key));
 
     if (display) {
-        return ui_display_address();
+        return ui_display_pubkey();
     }
 
     return helper_send_response_pubkey();
