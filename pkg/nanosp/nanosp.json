@@ -8,6 +8,6 @@
         "curves": ["secp256k1"],
         "path": ["m/2645'"]
     },
-    "binary": "app.hex",
+    "binary": "app_nanosp.hex",
     "dataSize": 0
 }

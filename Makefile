@@ -132,3 +132,6 @@ dep/%.d: %.c Makefile
 
 listvariants:
 	@echo VARIANTS COIN BOL
+
+release:
+		python3 release.py -t $(TARGET_NAME) -v $(APPVERSION)
