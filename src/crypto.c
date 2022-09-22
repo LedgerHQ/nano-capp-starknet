@@ -35,38 +35,6 @@ static unsigned char const STARK_DERIVE_BIAS[] = {
     0xf8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x0e, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xf7,
     0x38, 0xa1, 0x3b, 0x4b, 0x92, 0x0e, 0x94, 0x11, 0xae, 0x6d, 0xa5, 0xf4, 0x0b, 0x03, 0x58, 0xb1};
 
-int crypto_derive_private_key(cx_ecfp_private_key_t *private_key,
-                              uint8_t chain_code[static 32],
-                              const uint32_t *bip32_path,
-                              uint8_t bip32_path_len) {
-    uint8_t raw_private_key[32] = {0};
-
-    BEGIN_TRY {
-        TRY {
-            // derive the seed with bip32_path
-            os_perso_derive_node_bip32(CX_CURVE_256K1,
-                                       bip32_path,
-                                       bip32_path_len,
-                                       raw_private_key,
-                                       chain_code);
-            // new private_key from raw
-            cx_ecfp_init_private_key(CX_CURVE_256K1,
-                                     raw_private_key,
-                                     sizeof(raw_private_key),
-                                     private_key);
-        }
-        CATCH_OTHER(e) {
-            THROW(e);
-        }
-        FINALLY {
-            explicit_bzero(&raw_private_key, sizeof(raw_private_key));
-        }
-    }
-    END_TRY;
-
-    return 0;
-}
-
 int crypto_init_public_key(cx_ecfp_private_key_t *private_key,
                            cx_ecfp_public_key_t *public_key,
                            uint8_t raw_public_key[static 64]) {
@@ -168,6 +136,47 @@ int eip2645_derive_private_key(cx_ecfp_private_key_t *private_key,
         }
     }
     END_TRY;
+
+    return 0;
+}
+
+int crypto_sign_tx() {
+    cx_ecfp_private_key_t private_key = {0};
+    uint32_t info = 0;
+    int sig_len = 0;
+
+    // derive private key according to BIP32 path
+    eip2645_derive_private_key(&private_key,
+                              G_context.bip32_path,
+                              G_context.bip32_path_len);
+
+    BEGIN_TRY {
+        TRY {
+            sig_len = cx_ecdsa_sign(&private_key,
+                                    CX_RND_RFC6979 | CX_LAST,
+                                    CX_SHA256,
+                                    G_context.hash_info.m_hash,
+                                    sizeof(G_context.hash_info.m_hash),
+                                    G_context.hash_info.signature,
+                                    sizeof(G_context.hash_info.signature),
+                                    &info);
+            PRINTF("Signature: %.*H\n", sig_len, G_context.hash_info.signature);
+        }
+        CATCH_OTHER(e) {
+            THROW(e);
+        }
+        FINALLY {
+            explicit_bzero(&private_key, sizeof(private_key));
+        }
+    }
+    END_TRY;
+
+    if (sig_len < 0) {
+        return -1;
+    }
+
+    G_context.tx_info.signature_len = sig_len;
+    G_context.tx_info.v = (uint8_t)(info & CX_ECCINFO_PARITY_ODD);
 
     return 0;
 }

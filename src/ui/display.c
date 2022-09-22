@@ -37,11 +37,15 @@
 #include "../common/format.h"
 
 static action_validate_cb g_validate_callback;
-static char g_amount[30];
+//static char g_amount[30];
 static char g_bip32_path[60];
 static char g_pubkey[134];
-static char g_address[43];
+//static char g_address[43];
 static char g_hash[68];
+
+static char g_account_address[68];
+static char g_to_address[68];
+static char g_selector[32];
 
 // Step with icon and text
 UX_STEP_NOCB(ux_display_confirm_pubkey_step, pn, {&C_icon_eye, "Confirm Pubkey"});
@@ -123,57 +127,83 @@ UX_STEP_NOCB(ux_display_review_step,
              {
                  &C_icon_eye,
                  "Review",
-                 "Hash",
+                 "Tx",
              });
 // Step with title/text for amount
-UX_STEP_NOCB(ux_display_amount_step,
+UX_STEP_NOCB(ux_display_account_address_step,
              bnnn_paging,
              {
-                 .title = "Amount",
-                 .text = g_amount,
+                 .title = "Account Address",
+                 .text = g_account_address,
+             });
+
+UX_STEP_NOCB(ux_display_to_address_step,
+             bnnn_paging,
+             {
+                 .title = "Target Address",
+                 .text = g_to_address,
+             });
+
+UX_STEP_NOCB(ux_display_selector_step,
+             bnnn_paging,
+             {
+                 .title = "Selector",
+                 .text = g_selector,
              });
 
 // FLOW to display transaction information:
 // #1 screen : eye icon + "Review Transaction"
-// #2 screen : display amount
-// #3 screen : display destination address
-// #4 screen : approve button
-// #5 screen : reject button
-UX_FLOW(ux_display_transaction_flow,
-        &ux_display_review_step,
-        &ux_display_pubkey_step,
-        &ux_display_amount_step,
-        &ux_display_approve_step,
-        &ux_display_reject_step);
+// #2 screen : display account contract address
+// #3 screen : display target contract address
+// #4 screen : display selector
+// #5 screen : approve button
+// #6 screen : reject button
+
+const ux_flow_step_t *ux_display_transaction_flow[16 + 1];
 
 int ui_display_transaction() {
+    
+    uint8_t index = 0;
+    
     if (G_context.req_type != CONFIRM_TRANSACTION || G_context.state != STATE_PARSED) {
         G_context.state = STATE_NONE;
         return io_send_sw(SW_BAD_STATE);
     }
 
-    memset(g_amount, 0, sizeof(g_amount));
-    char amount[30] = {0};
-    if (!format_fpu64(amount,
-                      sizeof(amount),
-                      G_context.tx_info.transaction.value,
-                      EXPONENT_SMALLEST_UNIT)) {
-        return io_send_sw(SW_DISPLAY_AMOUNT_FAIL);
-    }
-    snprintf(g_amount, sizeof(g_amount), "BOL %.*s", sizeof(amount), amount);
-    PRINTF("Amount: %s\n", g_amount);
+    ux_display_transaction_flow[index++] = &ux_display_review_step;
 
-    memset(g_address, 0, sizeof(g_address));
-    snprintf(g_address, sizeof(g_address), "0x%.*H", ADDRESS_LEN, G_context.tx_info.transaction.to);
+    memset(g_account_address, 0, sizeof(g_account_address));
+    snprintf(g_account_address, sizeof(g_account_address), "0x%.*H", 32, G_context.tx_info.transaction.sender_address);
+    ux_display_transaction_flow[index++] = &ux_display_account_address_step;
+
+    memset(g_to_address, 0, sizeof(g_to_address));
+    snprintf(g_to_address, sizeof(g_to_address), "0x%.*H", 32, G_context.tx_info.transaction.calldata.to);
+    ux_display_transaction_flow[index++] = &ux_display_to_address_step;
+
+    memset(g_selector, 0, sizeof(g_selector));
+    snprintf(g_selector, G_context.tx_info.transaction.calldata.entry_point_length + 1, "%s", G_context.tx_info.transaction.calldata.entry_point);
+    ux_display_transaction_flow[index++] = &ux_display_selector_step;
 
     g_validate_callback = &ui_action_validate_transaction;
+    ux_display_transaction_flow[index++] = &ux_display_approve_step;
+
+    ux_display_transaction_flow[index++] = &ux_display_reject_step;
+    
+    ux_display_transaction_flow[index++] = FLOW_END_STEP;
 
     ux_flow_init(0, ux_display_transaction_flow, NULL);
 
     return 0;
 }
 
-// Step with title/text for amount
+UX_STEP_NOCB(ux_display_review_hash_step,
+             pnn,
+             {
+                 &C_icon_eye,
+                 "Review",
+                 "Hash",
+             });
+
 UX_STEP_NOCB(ux_display_hash_step,
              bnnn_paging,
              {
@@ -187,7 +217,7 @@ UX_STEP_NOCB(ux_display_hash_step,
 // #3 screen : approve button
 // #4 screen : reject button
 UX_FLOW(ux_display_hash_flow,
-        &ux_display_review_step,
+        &ux_display_review_hash_step,
         &ux_display_hash_step,
         &ux_display_approve_step,
         &ux_display_reject_step);

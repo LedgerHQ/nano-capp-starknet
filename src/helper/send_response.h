@@ -38,3 +38,5 @@ int helper_send_response_pubkey(void);
  *
  */
 int helper_send_response_sig(void);
+
+int helper_send_response_ok(void);
