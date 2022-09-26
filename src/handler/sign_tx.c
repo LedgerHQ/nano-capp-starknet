@@ -36,6 +36,8 @@
 
 int handler_sign_tx(buffer_t *cdata, uint8_t chunk, bool more) { 
 
+    uint8_t i;
+
     if (chunk == 0) {  // first APDU, parse BIP32 path
 
         explicit_bzero(&G_context, sizeof(G_context));
@@ -91,18 +93,14 @@ int handler_sign_tx(buffer_t *cdata, uint8_t chunk, bool more) {
 
             G_context.state = STATE_PARSED;
 
-            /*cx_sha3_t keccak256;
-            cx_keccak_init(&keccak256, 256);
-            cx_hash((cx_hash_t *) &keccak256,
-                    CX_LAST,
-                    G_context.tx_info.raw_tx,
-                    G_context.tx_info.raw_tx_len,
-                    G_context.tx_info.m_hash,
-                    sizeof(G_context.tx_info.m_hash));
-
-            PRINTF("Hash: %.*H\n", sizeof(G_context.tx_info.m_hash), G_context.tx_info.m_hash);*/
-
             hash_tx(&G_context.tx_info.transaction, G_context.tx_info.m_hash);
+            PRINTF("Hash Tx OK\n", G_context.tx_info.m_hash);
+            for (i = 0; i < 32; i++){
+                PRINTF("%02X ", G_context.tx_info.m_hash[i]);
+                if ((i+1)%16 == 0)
+                    PRINTF("\n");
+            }
+               
 
             return ui_display_transaction();
         }

@@ -155,12 +155,12 @@ int crypto_sign_tx() {
             sig_len = cx_ecdsa_sign(&private_key,
                                     CX_RND_RFC6979 | CX_LAST,
                                     CX_SHA256,
-                                    G_context.hash_info.m_hash,
-                                    sizeof(G_context.hash_info.m_hash),
-                                    G_context.hash_info.signature,
-                                    sizeof(G_context.hash_info.signature),
+                                    G_context.tx_info.m_hash,
+                                    sizeof(G_context.tx_info.m_hash),
+                                    G_context.tx_info.signature,
+                                    sizeof(G_context.tx_info.signature),
                                     &info);
-            PRINTF("Signature: %.*H\n", sig_len, G_context.hash_info.signature);
+            PRINTF("Signature: %.*H\n", sig_len, G_context.tx_info.signature);
         }
         CATCH_OTHER(e) {
             THROW(e);

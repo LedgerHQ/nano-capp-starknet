@@ -6,6 +6,7 @@
 
 #include "os.h" 
 #include "cx.h"
+#include "os_io_seproxyhal.h"
 
 #include "hash.h"
 
@@ -113,9 +114,11 @@ static void accum_ec_mul(ECPoint *hash, uint8_t *buf, int len, int pedersen_idx)
     }
 }
 
-static void pedersen(FieldElement res,
-                  FieldElement a,
-              FieldElement b) {
+static void pedersen(
+    FieldElement res,
+    FieldElement a,
+    FieldElement b) {
+    
     ECPoint hash;
 
     memcpy(hash, PEDERSEN_SHIFT, sizeof(hash));
@@ -136,9 +139,6 @@ static int get_selector_from_name(uint8_t *name, uint8_t name_length, uint8_t* s
     uint8_t i;
     cx_err_t res;
 
-    name[name_length]='\0';
-    PRINTF("get_selector_from_name: %s\n", name);
-
     res = cx_keccak_init_no_throw(&keccak256, 256);
     if (res != CX_OK) {
         PRINTF("Error Keccak init\n");    
@@ -155,7 +155,12 @@ static int get_selector_from_name(uint8_t *name, uint8_t name_length, uint8_t* s
         PRINTF("Error BN init: %x \n", res);    
     }
 
-    cx_bn_shr(hash_bn, 6);
+    cx_bn_clr_bit (hash_bn, 255);
+    cx_bn_clr_bit (hash_bn, 254);
+    cx_bn_clr_bit (hash_bn, 253);
+    cx_bn_clr_bit (hash_bn, 252);
+    cx_bn_clr_bit (hash_bn, 251);
+    cx_bn_clr_bit (hash_bn, 250);
 
     res = cx_bn_export(hash_bn, selector, 32);
     if (res != CX_OK) {
@@ -178,7 +183,29 @@ static int compute_hash_on_calldata(callData_t *calldata, FieldElement hash) {
     FieldElement b = {0};
     uint8_t i;
 
-    b[0] = calldata->callarray_length;
+    PRINTF("%s: \n", __FUNCTION__);
+    PRINTF("callarray_length = %d \n", calldata->callarray_length);
+    PRINTF("to = ");
+    for (i = 0; i < 32; i++)
+        PRINTF("%02x", calldata->to[i]);
+    PRINTF("\n");
+    PRINTF("selector = ");
+    for (i = 0; i < 32; i++)
+        PRINTF("%02x", calldata->selector[i]);
+    PRINTF("\n");
+    PRINTF("data_offset = %d \n", calldata->data_offset);
+    PRINTF("data_length = %d \n", calldata->data_length);
+    PRINTF("calldata_length = %d \n", calldata->calldata_length);
+    PRINTF("calldata #1 = ");
+    for (i = 0; i < 32; i++)
+        PRINTF("%02x", calldata->calldata[i]);
+    PRINTF("\n");  
+    PRINTF("calldata #2 = ");
+    for (i = 0; i < 32; i++)
+        PRINTF("%02x", calldata->calldata[32 + i]);
+    PRINTF("\n");
+
+    b[31] = calldata->callarray_length;
     pedersen(hash, a, b);
     memcpy(a, hash, FIELD_ELEMENT_SIZE);
     
@@ -189,17 +216,17 @@ static int compute_hash_on_calldata(callData_t *calldata, FieldElement hash) {
     memcpy(a, hash, FIELD_ELEMENT_SIZE);
 
     memset(b, 0, FIELD_ELEMENT_SIZE);
-    b[0] = calldata->data_offset;
+    b[31] = calldata->data_offset;
     pedersen(hash, a, b);
     memcpy(a, hash, FIELD_ELEMENT_SIZE);
 
     memset(b, 0, FIELD_ELEMENT_SIZE);
-    b[0] = calldata->data_length;
+    b[31] = calldata->data_length;
     pedersen(hash, a, b);
     memcpy(a, hash, FIELD_ELEMENT_SIZE);
 
     memset(b, 0, FIELD_ELEMENT_SIZE);
-    b[0] = calldata->calldata_length;
+    b[31] = calldata->calldata_length;
     pedersen(hash, a, b);
     memcpy(a, hash, FIELD_ELEMENT_SIZE);
 
@@ -208,9 +235,19 @@ static int compute_hash_on_calldata(callData_t *calldata, FieldElement hash) {
         memcpy(a, hash, FIELD_ELEMENT_SIZE);
     }
 
+    memset(b, 0, FIELD_ELEMENT_SIZE);
+    b[31] = 1 + calldata->callarray_length * 4 + 1 + calldata->calldata_length;
+    pedersen(hash, a, b);
+
+    PRINTF("Calldata hash: ");
+    for (i = 0; i < 32; i++)
+        PRINTF("%02x", hash[i]);
+    PRINTF("\n");
+
     return 0;
 }
 
+/* 0x1bd4706468c32ba67e8ac8b0e72c0adc27e8e0810fd9f7849bba6719fc3b386 */
 static int calculate_tx_hash(
     FieldElement sender_address, 
     FieldElement version, 
@@ -222,13 +259,11 @@ static int calculate_tx_hash(
     
     FieldElement a = {0};
     FieldElement b = {0};
-    FieldElement res;
-    FieldElement hash_on_calldata;
-    uint8_t i;
+    FieldElement hash_on_calldata = {0};
         
     compute_hash_on_calldata(calldata, hash_on_calldata);
 
-    memcpy(b, INVOKE, sizeof(INVOKE));
+    memcpy(b + 32 - sizeof(INVOKE), INVOKE, sizeof(INVOKE));
     pedersen(hash, a, b);
     memcpy(a, hash, FIELD_ELEMENT_SIZE);
 
@@ -238,7 +273,7 @@ static int calculate_tx_hash(
     pedersen(hash, a, sender_address);
     memcpy(a, hash, FIELD_ELEMENT_SIZE);
 
-    memset(b, 0, FIELD_ELEMENT_SIZE);
+    memset(b, 0, sizeof(b));
     pedersen(hash, a, b);
     memcpy(a, hash, FIELD_ELEMENT_SIZE);
 
@@ -252,6 +287,13 @@ static int calculate_tx_hash(
     memcpy(a, hash, FIELD_ELEMENT_SIZE);
 
     pedersen(hash, a, nonce);
+    memcpy(a, hash, FIELD_ELEMENT_SIZE);
+
+    memset(b, 0, FIELD_ELEMENT_SIZE);
+    b[31] = 8;
+    pedersen(hash, a, b);
+
+    return 0;
 };
 
 int hash_tx(transaction_t *tx, uint8_t* hash) {
