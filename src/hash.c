@@ -141,48 +141,51 @@ static int get_selector_from_name(uint8_t *name, uint8_t name_length, uint8_t* s
 
     res = cx_keccak_init_no_throw(&keccak256, 256);
     if (res != CX_OK) {
-        PRINTF("Error Keccak init\n");    
+        return res;
     }
     res = cx_hash_no_throw((cx_hash_t *)&keccak256, CX_LAST, name, name_length, selector, 32);
-        if (res != CX_OK) {
-        PRINTF("Error Hash\n");    
+    if (res != CX_OK) {
+        return res;
     }
 
     cx_bn_lock(32, 0);
 
     res = cx_bn_alloc_init(&hash_bn, 32, selector, 32);
     if (res != CX_OK) {
-        PRINTF("Error BN init: %x \n", res);    
+        return res;
     }
 
-    cx_bn_clr_bit (hash_bn, 255);
-    cx_bn_clr_bit (hash_bn, 254);
-    cx_bn_clr_bit (hash_bn, 253);
-    cx_bn_clr_bit (hash_bn, 252);
-    cx_bn_clr_bit (hash_bn, 251);
-    cx_bn_clr_bit (hash_bn, 250);
+    for (i = 255; i>=250; i--){
+        res = cx_bn_clr_bit(hash_bn, i);
+        if (res != CX_OK) {
+            return res;
+        }
+    }
 
     res = cx_bn_export(hash_bn, selector, 32);
     if (res != CX_OK) {
-        PRINTF("error when exporting\n");
+        return res;
     }
     cx_bn_destroy(&hash_bn);
 
     cx_bn_unlock();
 
+#ifdef HAVE_PRINTF
     for (i = 0; i < 32; i++)
         PRINTF("%02x", selector[i]);
     PRINTF("\n");
+#endif /* HAVE_PRINTF */
 
-    return 0;
+    return CX_OK;
 }
 
 static int compute_hash_on_calldata(callData_t *calldata, FieldElement hash) {
 
     FieldElement a = {0};
     FieldElement b = {0};
-    uint8_t i;
+    uint8_t i = 0;
 
+#ifdef HAVE_PRINTF
     PRINTF("%s: \n", __FUNCTION__);
     PRINTF("callarray_length = %d \n", calldata->callarray_length);
     PRINTF("to = ");
@@ -204,50 +207,70 @@ static int compute_hash_on_calldata(callData_t *calldata, FieldElement hash) {
     for (i = 0; i < 32; i++)
         PRINTF("%02x", calldata->calldata[32 + i]);
     PRINTF("\n");
+#endif /* HAVE_PRINTF */
 
     b[31] = calldata->callarray_length;
-    pedersen(hash, a, b);
-    memcpy(a, hash, FIELD_ELEMENT_SIZE);
-    
-    pedersen(hash, a, calldata->to);
-    memcpy(a, hash, FIELD_ELEMENT_SIZE);
-
-    pedersen(hash, a, calldata->selector);
-    memcpy(a, hash, FIELD_ELEMENT_SIZE);
-
-    memset(b, 0, FIELD_ELEMENT_SIZE);
+    pedersen(a, a, b);
+    pedersen(a, a, calldata->to);
+    pedersen(a, a, calldata->selector);
     b[31] = calldata->data_offset;
-    pedersen(hash, a, b);
-    memcpy(a, hash, FIELD_ELEMENT_SIZE);
-
-    memset(b, 0, FIELD_ELEMENT_SIZE);
+    pedersen(a, a, b);
     b[31] = calldata->data_length;
-    pedersen(hash, a, b);
-    memcpy(a, hash, FIELD_ELEMENT_SIZE);
-
-    memset(b, 0, FIELD_ELEMENT_SIZE);
+    pedersen(a, a, b);
     b[31] = calldata->calldata_length;
-    pedersen(hash, a, b);
-    memcpy(a, hash, FIELD_ELEMENT_SIZE);
-
+    pedersen(a, a, b);
     for (i = 0; i < calldata->calldata_length; i++) {
-        pedersen(hash, a, calldata->calldata + i * 32);
-        memcpy(a, hash, FIELD_ELEMENT_SIZE);
+        pedersen(a, a, calldata->calldata + i * 32);
     }
-
-    memset(b, 0, FIELD_ELEMENT_SIZE);
     b[31] = 1 + calldata->callarray_length * 4 + 1 + calldata->calldata_length;
     pedersen(hash, a, b);
 
+#ifdef HAVE_PRINTF
     PRINTF("Calldata hash: ");
     for (i = 0; i < 32; i++)
         PRINTF("%02x", hash[i]);
     PRINTF("\n");
+#endif /* HAVE_PRINTF */
 
-    return 0;
+    return CX_OK;
 }
 
-/* 0x1bd4706468c32ba67e8ac8b0e72c0adc27e8e0810fd9f7849bba6719fc3b386 */
+void shift_stark_hash(FieldElement hash) {
+    cx_bn_t hash256;
+    
+    cx_bn_lock(32, 0);
+    cx_bn_alloc_init(&hash256, 32, hash, 32);
+
+    uint32_t bits_count = 256;
+    bool set = false;
+    while (bits_count > 0) {
+        cx_bn_tst_bit(hash256, bits_count - 1, &set);
+        if (set) {
+            break;
+        }
+        else
+            bits_count--;
+    }
+
+    if (bits_count < 248) {
+        return;
+    } else if (bits_count >= 248 && bits_count % 8 >= 1 && bits_count % 8 <= 4) {
+        cx_bn_shl(hash256, 4);
+        cx_bn_export(hash256, hash, 32);
+        cx_bn_destroy(&hash256);
+        cx_bn_unlock();
+        return;
+    } else {
+        THROW(0x6A80);
+    }
+}
+
+/* Hash computed: 0x1bd4706468c32ba67e8ac8b0e72c0adc27e8e0810fd9f7849bba6719fc3b386 */
+/* Hash to sign : 0x1bd4706468c32ba67e8ac8b0e72c0adc27e8e0810fd9f7849bba6719fc3b3860 */
+
+/* Hash Nano computed: 0x01bd4706468c32ba67e8ac8b0e72c0adc27e8e0810fd9f7849bba6719fc3b386 */
+/* Hahs Nano to sign:  0x1bd4706468c32ba67e8ac8b0e72c0adc27e8e0810fd9f7849bba6719fc3b3860 */
+
 static int calculate_tx_hash(
     FieldElement sender_address, 
     FieldElement version, 
@@ -260,47 +283,43 @@ static int calculate_tx_hash(
     FieldElement a = {0};
     FieldElement b = {0};
     FieldElement hash_on_calldata = {0};
+
+    int res = CX_OK;
         
-    compute_hash_on_calldata(calldata, hash_on_calldata);
+    res = compute_hash_on_calldata(calldata, hash_on_calldata);
+    if (res != CX_OK){
+        return res;
+    }
 
     memcpy(b + 32 - sizeof(INVOKE), INVOKE, sizeof(INVOKE));
-    pedersen(hash, a, b);
-    memcpy(a, hash, FIELD_ELEMENT_SIZE);
-
-    pedersen(hash, a, version);
-    memcpy(a, hash, FIELD_ELEMENT_SIZE);
-
-    pedersen(hash, a, sender_address);
-    memcpy(a, hash, FIELD_ELEMENT_SIZE);
-
+    pedersen(a, a, b);
+    pedersen(a, a, version);
+    pedersen(a, a, sender_address);
     memset(b, 0, sizeof(b));
-    pedersen(hash, a, b);
-    memcpy(a, hash, FIELD_ELEMENT_SIZE);
-
-    pedersen(hash, a, hash_on_calldata);
-    memcpy(a, hash, FIELD_ELEMENT_SIZE);
-
-    pedersen(hash, a, max_fee);
-    memcpy(a, hash, FIELD_ELEMENT_SIZE);
-
-    pedersen(hash, a, chain_id);
-    memcpy(a, hash, FIELD_ELEMENT_SIZE);
-
-    pedersen(hash, a, nonce);
-    memcpy(a, hash, FIELD_ELEMENT_SIZE);
-
+    pedersen(a, a, b);
+    pedersen(a, a, hash_on_calldata);
+    pedersen(a, a, max_fee);
+    pedersen(a, a, chain_id);
+    pedersen(a, a, nonce);
     memset(b, 0, FIELD_ELEMENT_SIZE);
     b[31] = 8;
     pedersen(hash, a, b);
 
-    return 0;
+    shift_stark_hash(hash);
+
+    return CX_OK;
 };
 
 int hash_tx(transaction_t *tx, uint8_t* hash) {
 
-    get_selector_from_name(tx->calldata.entry_point, tx->calldata.entry_point_length, tx->calldata.selector);
+    int res = CX_OK;
 
-    calculate_tx_hash(tx->sender_address, tx->version, &(tx->calldata), tx->max_fee, tx->chain_id, tx->nonce, hash);
+    res = get_selector_from_name(tx->calldata.entry_point, tx->calldata.entry_point_length, tx->calldata.selector);
+    if (res != CX_OK){
+        return res;
+    }
 
-    return 0;
+    res = calculate_tx_hash(tx->sender_address, tx->version, &(tx->calldata), tx->max_fee, tx->chain_id, tx->nonce, hash);
+
+    return res;
 }
