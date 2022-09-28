@@ -170,12 +170,6 @@ static int get_selector_from_name(uint8_t *name, uint8_t name_length, uint8_t* s
 
     cx_bn_unlock();
 
-#ifdef HAVE_PRINTF
-    for (i = 0; i < 32; i++)
-        PRINTF("%02x", selector[i]);
-    PRINTF("\n");
-#endif /* HAVE_PRINTF */
-
     return CX_OK;
 }
 
@@ -185,29 +179,13 @@ static int compute_hash_on_calldata(callData_t *calldata, FieldElement hash) {
     FieldElement b = {0};
     uint8_t i = 0;
 
-#ifdef HAVE_PRINTF
     PRINTF("%s: \n", __FUNCTION__);
     PRINTF("callarray_length = %d \n", calldata->callarray_length);
-    PRINTF("to = ");
-    for (i = 0; i < 32; i++)
-        PRINTF("%02x", calldata->to[i]);
-    PRINTF("\n");
-    PRINTF("selector = ");
-    for (i = 0; i < 32; i++)
-        PRINTF("%02x", calldata->selector[i]);
-    PRINTF("\n");
+    PRINTF("to: %.*h\n", 32, calldata->to);    
+    PRINTF("selector: %.*h\n", 32, calldata->selector);
     PRINTF("data_offset = %d \n", calldata->data_offset);
     PRINTF("data_length = %d \n", calldata->data_length);
     PRINTF("calldata_length = %d \n", calldata->calldata_length);
-    PRINTF("calldata #1 = ");
-    for (i = 0; i < 32; i++)
-        PRINTF("%02x", calldata->calldata[i]);
-    PRINTF("\n");  
-    PRINTF("calldata #2 = ");
-    for (i = 0; i < 32; i++)
-        PRINTF("%02x", calldata->calldata[32 + i]);
-    PRINTF("\n");
-#endif /* HAVE_PRINTF */
 
     b[31] = calldata->callarray_length;
     pedersen(a, a, b);
@@ -225,12 +203,7 @@ static int compute_hash_on_calldata(callData_t *calldata, FieldElement hash) {
     b[31] = 1 + calldata->callarray_length * 4 + 1 + calldata->calldata_length;
     pedersen(hash, a, b);
 
-#ifdef HAVE_PRINTF
-    PRINTF("Calldata hash: ");
-    for (i = 0; i < 32; i++)
-        PRINTF("%02x", hash[i]);
-    PRINTF("\n");
-#endif /* HAVE_PRINTF */
+    PRINTF("calldata hash %.*h\n", 32, hash);
 
     return CX_OK;
 }
