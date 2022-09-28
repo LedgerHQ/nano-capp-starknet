@@ -93,11 +93,11 @@ int handler_sign_tx(buffer_t *cdata, uint8_t chunk, bool more) {
 
             G_context.state = STATE_PARSED;
 
-            hash_tx(&G_context.tx_info.transaction, G_context.tx_info.m_hash);
+            hash_tx(&G_context.tx_info.transaction, G_context.hash_info.m_hash);
 #ifdef HAVE_PRINTF
-            PRINTF("Hash Tx OK\n", G_context.tx_info.m_hash);
+            PRINTF("Hash Tx OK\n", G_context.hash_info.m_hash);
             for (i = 0; i < 32; i++){
-                PRINTF("%02x", G_context.tx_info.m_hash[i]);
+                PRINTF("%02x", G_context.hash_info.m_hash[i]);
             }
             PRINTF("\n");
 #endif /* HAVE_PRINTF */

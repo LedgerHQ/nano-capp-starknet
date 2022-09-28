@@ -6,6 +6,8 @@
 #include "os.h"
 #include "cx.h"
 
+#include "types.h"
+
 
 /**
  * Initialize public key given private key.
@@ -27,17 +29,16 @@ int crypto_init_public_key(cx_ecfp_private_key_t *private_key,
                            uint8_t raw_public_key[static 64]);
 
 /**
- * Sign message hash in global context.
+ * Sign message hash from global context.
  *
- * @see G_context.bip32_path, G_context.tx_info.m_hash,
- * G_context.tx_info.signature.
+ * @see G_context.bip32_path, G_context.hash_info
  *
  * @return 0 if success, -1 otherwise.
  *
  * @throw INVALID_PARAMETER
  *
  */
-int crypto_sign_message(void);
+int crypto_sign_hash(uint32_t *bip32_path, uint8_t bip32_path_len, hash_ctx_t *hash_info);
 
 /**
  * Derive private key given EIP-2645 path.

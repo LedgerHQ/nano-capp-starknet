@@ -59,16 +59,16 @@ static void format_signature_out(const uint8_t *der_signature, uint8_t* signatur
     memmove(signature + offset + 32 - xlength, der_signature + xoffset, xlength);
 }
 
-int helper_send_response_sig() {
+int helper_send_response_sig(hash_ctx_t* hash_info) {
     uint8_t resp[1 + 64 + 1] = {0};
     size_t offset = 0;
 
-    resp[offset++] = 64;
+    resp[offset++] = 65;
 
-    format_signature_out(G_context.hash_info.signature, resp);
+    format_signature_out(hash_info->signature, resp);
 
     offset += 64;
-    resp[offset++] = (uint8_t) G_context.hash_info.v;
+    resp[offset++] = (uint8_t) hash_info->v;
 
     return io_send_response(&(const buffer_t){.ptr = resp, .size = offset, .offset = 0}, SW_OK);
 }

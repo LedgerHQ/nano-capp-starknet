@@ -237,7 +237,7 @@ static int compute_hash_on_calldata(callData_t *calldata, FieldElement hash) {
 
 void shift_stark_hash(FieldElement hash) {
     cx_bn_t hash256;
-    
+
     cx_bn_lock(32, 0);
     cx_bn_alloc_init(&hash256, 32, hash, 32);
 
@@ -270,6 +270,13 @@ void shift_stark_hash(FieldElement hash) {
 
 /* Hash Nano computed: 0x01bd4706468c32ba67e8ac8b0e72c0adc27e8e0810fd9f7849bba6719fc3b386 */
 /* Hahs Nano to sign:  0x1bd4706468c32ba67e8ac8b0e72c0adc27e8e0810fd9f7849bba6719fc3b3860 */
+
+/* Starknet Hash 0x20c6f2671c788c3a5702b9b173be5726fe45b10861d5d5b30a4f48c168544bc */
+/* Starknet r = 3114258569095106207910079532395933733789197423962233935501403048132663697740 */
+/*          r = 6e29b9e64a7d264d2f6c946dff64575feeda9f5ccec731cb6a07823f0e1e14c */
+/* Starknet s = 678721208144037428338534506824000049830295229065586991885511104776506606771 */
+/*          s = 1802480cc6a67aff204a2091574b16ec3cdfd402c53342ca351c1fb42c284b3 */
+
 
 static int calculate_tx_hash(
     FieldElement sender_address, 

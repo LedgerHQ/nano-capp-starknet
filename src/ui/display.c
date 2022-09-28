@@ -184,7 +184,7 @@ int ui_display_transaction() {
     snprintf(g_selector, G_context.tx_info.transaction.calldata.entry_point_length + 1, "%s", G_context.tx_info.transaction.calldata.entry_point);
     ux_display_transaction_flow[index++] = &ux_display_selector_step;
 
-    g_validate_callback = &ui_action_validate_transaction;
+    g_validate_callback = &ui_action_validate;
     ux_display_transaction_flow[index++] = &ux_display_approve_step;
 
     ux_display_transaction_flow[index++] = &ux_display_reject_step;
@@ -231,7 +231,7 @@ int ui_display_hash() {
     memset(g_hash, 0, sizeof(g_hash));
     snprintf(g_hash, sizeof(g_hash), "0x%.*H", 32, G_context.hash_info.m_hash);
 
-    g_validate_callback = &ui_action_validate_hash;
+    g_validate_callback = &ui_action_validate;
 
     ux_flow_init(0, ux_display_hash_flow, NULL);
 
