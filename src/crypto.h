@@ -12,10 +12,10 @@
 /**
  * Initialize public key given private key.
  *
- * @param[in]  private_key
- *   Pointer to private key.
- * @param[out] public_key
- *   Pointer to public key.
+ * @param[in]  bip32_path
+ *   Pointer to derivation path.
+ * @param[out] bip32_path_len
+ *   Derivation path length
  * @param[out] raw_public_key
  *   Pointer to raw public key.
  *
@@ -24,8 +24,8 @@
  * @throw INVALID_PARAMETER
  *
  */
-int crypto_init_public_key(cx_ecfp_private_key_t *private_key,
-                           cx_ecfp_public_key_t *public_key,
+int crypto_init_public_key(uint32_t *bip32_path,
+                           uint8_t bip32_path_len,
                            uint8_t raw_public_key[static 64]);
 
 /**

@@ -35,13 +35,25 @@ static unsigned char const STARK_DERIVE_BIAS[] = {
     0xf8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x0e, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xf7,
     0x38, 0xa1, 0x3b, 0x4b, 0x92, 0x0e, 0x94, 0x11, 0xae, 0x6d, 0xa5, 0xf4, 0x0b, 0x03, 0x58, 0xb1};
 
-int crypto_init_public_key(cx_ecfp_private_key_t *private_key,
-                           cx_ecfp_public_key_t *public_key,
+int crypto_init_public_key(uint32_t *bip32_path,
+                           uint8_t bip32_path_len,
                            uint8_t raw_public_key[static 64]) {
-    // generate corresponding public key
-    cx_ecfp_generate_pair(CX_CURVE_Stark256, public_key, private_key, 1);
 
-    memmove(raw_public_key, public_key->W + 1, 64);
+    cx_ecfp_private_key_t private_key = {0};
+    cx_ecfp_public_key_t public_key = {0};
+
+    // derive private key according to EIP 2645
+    eip2645_derive_private_key(&private_key,
+                              bip32_path,
+                              bip32_path_len);
+
+    // generate corresponding public key
+    cx_ecfp_generate_pair(CX_CURVE_Stark256, &public_key, &private_key, 1);
+
+    memmove(raw_public_key, public_key.W + 1, 64);
+
+     // reset private key
+    explicit_bzero(&private_key, sizeof(private_key));
 
     return 0;
 }
