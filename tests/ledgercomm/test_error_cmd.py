@@ -16,7 +16,7 @@ def test_bad_cla(cmd):
 
 @pytest.mark.xfail(raises=InsNotSupportedError)
 def test_bad_ins(cmd):
-    sw, _ = cmd.transport.exchange(cla=0xe0,
+    sw, _ = cmd.transport.exchange(cla=0x5a,
                                    ins=0xff,  # bad INS
                                    p1=0x00,
                                    p2=0x00,
@@ -27,8 +27,8 @@ def test_bad_ins(cmd):
 
 @pytest.mark.xfail(raises=WrongP1P2Error)
 def test_wrong_p1p2(cmd):
-    sw, _ = cmd.transport.exchange(cla=0xe0,
-                                   ins=0x03,
+    sw, _ = cmd.transport.exchange(cla=0x5a,
+                                   ins=0x00,
                                    p1=0x01,  # 0x01 instead of 0x00
                                    p2=0x00,
                                    cdata=b"")

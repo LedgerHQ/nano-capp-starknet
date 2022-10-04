@@ -1,4 +1,5 @@
 import struct
+import time
 from typing import Tuple
 
 from ledgercomm import Transport
@@ -84,22 +85,47 @@ class BoilerplateCommand:
 
         # response = pub_key_len (1) ||
         #            pub_key (var) ||
-        #            chain_code_len (1) ||
-        #            chain_code (var)
         offset: int = 0
 
         pub_key_len: int = response[offset]
         offset += 1
-        pub_key: bytes = response[offset:offset + pub_key_len]
-        offset += pub_key_len
-        chain_code_len: int = response[offset]
+        pub_key_x: bytes = response[offset + 1:offset + 1 + 32]
+        offset += 1 + 32
+        pub_key_y: bytes = response[offset:offset + 32]
+
+        assert len(response) == 1 + pub_key_len
+
+        return pub_key_x, pub_key_y
+
+    def sign_hash(self, bip32_path: str, hash: bytes, button: Button, model: str) -> Tuple[bytes, bytes, int]:
+        sw: int
+        response: bytes = b""
+
+        for chunk in self.builder.sign_hash(bip32_path=bip32_path, hash=hash):
+            self.transport.send_raw(chunk)
+
+            sw, response = self.transport.recv() 
+
+            if sw != 0x9000:
+                raise DeviceException(error_code=sw, ins=InsType.INS_SIGN_TX)
+
+        # response = sig_len (1) ||
+        #            sig (var) ||
+        #            v (1)
+        offset: int = 0
+        sig_len: int = response[offset]
         offset += 1
-        chain_code: bytes = response[offset:offset + chain_code_len]
-        offset += chain_code_len
+        r: bytes = response[offset:offset + 32]
+        offset += 32
+        s: bytes = response[offset:offset + 32]
+        offset += 32
+        v: int = response[offset]
+        offset += 1
 
-        assert len(response) == 1 + pub_key_len + 1 + chain_code_len
+        assert len(response) == 1 + sig_len 
 
-        return pub_key, chain_code
+        return r, s, v
+
 
     def sign_tx(self, bip32_path: str, transaction: Transaction, button: Button, model: str) -> Tuple[int, bytes]:
         sw: int
@@ -109,6 +135,10 @@ class BoilerplateCommand:
             self.transport.send_raw(chunk)
 
             if is_last:
+                
+                # let Nano compute Pedersen hash :(
+                time.sleep(15)
+
                 # Review Transaction
                 button.right_click()
                 # Address
@@ -117,7 +147,14 @@ class BoilerplateCommand:
                     button.right_click()
                     button.right_click()
                 button.right_click()
-                # Amount
+                button.right_click()
+                # To
+                button.right_click()
+                button.right_click()
+                if model == 'nanos':
+                    button.right_click()
+                    button.right_click()
+                # Selector
                 button.right_click()
                 # Approve
                 button.both_click()
@@ -127,17 +164,16 @@ class BoilerplateCommand:
             if sw != 0x9000:
                 raise DeviceException(error_code=sw, ins=InsType.INS_SIGN_TX)
 
-        # response = der_sig_len (1) ||
-        #            der_sig (var) ||
-        #            v (1)
         offset: int = 0
-        der_sig_len: int = response[offset]
+        sig_len: int = response[offset]
         offset += 1
-        der_sig: bytes = response[offset:offset + der_sig_len]
-        offset += der_sig_len
+        r: bytes = response[offset:offset + 32]
+        offset += 32
+        s: bytes = response[offset:offset + 32]
+        offset += 32
         v: int = response[offset]
         offset += 1
 
-        assert len(response) == 1 + der_sig_len + 1
+        assert len(response) == 1 + sig_len 
 
-        return v, der_sig
+        return r, s, v
