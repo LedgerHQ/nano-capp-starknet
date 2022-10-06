@@ -81,6 +81,8 @@ int handler_sign_tx(buffer_t *cdata, uint8_t chunk, bool more) {
                             .size = G_context.tx_info.raw_tx_len,
                             .offset = 0};
 
+            PRINTF("total raw tx buffer length = %d\n", buf.size);
+
             parser_status_e status = transaction_deserialize(&buf, &G_context.tx_info.transaction);
             
             if (status != PARSING_OK) {

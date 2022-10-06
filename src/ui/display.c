@@ -38,10 +38,8 @@
 #include "../transaction/types.h"
 
 static action_validate_cb g_validate_callback;
-//static char g_amount[30];
 static char g_bip32_path[60];
 static char g_pubkey[134];
-//static char g_address[43];
 static char g_hash[68];
 
 static char g_account_address[68];
@@ -57,7 +55,6 @@ static char g_calldata_name_2[32];
 
 
 int format_calldata_display(char* output, uint8_t output_size, callData_item_t* data) {
-    
     uint8_t bytes = 32;
     uint8_t idx = 0;
     uint32_t val = 0;
@@ -79,7 +76,17 @@ int format_calldata_display(char* output, uint8_t output_size, callData_item_t* 
  
         snprintf(output, output_size, "%d", val);
     }
+    return 0;
+}
 
+int format_calldata_name_display(char* output, uint8_t output_size, callData_item_t* data) {
+    memset(output, 0, output_size);
+    if (data->name_len > 0) {
+        snprintf(output, output_size, "%.*s", data->name_len, data->name);
+    }
+    else {
+        snprintf(output, output_size, "%s", "Calldata:\0");
+    }
     return 0;
 }
 
@@ -245,37 +252,19 @@ int ui_display_transaction() {
     /* start display calldata */
 
     if (G_context.tx_info.transaction.calldata.calldata_length >= 1) {
-        if (G_context.tx_info.transaction.calldata.calldata[0].name_len > 0) {
-            snprintf(g_calldata_name_0, sizeof(g_calldata_name_0), "%s", G_context.tx_info.transaction.calldata.calldata[0].name);
-            g_calldata_name_0[G_context.tx_info.transaction.calldata.calldata[0].name_len] = '\0';
-        }
-        else {
-            snprintf(g_calldata_name_0, sizeof(g_calldata_name_0), "%s", "Calldata 0:\0");
-        }
+        format_calldata_name_display(g_calldata_name_0, sizeof(g_calldata_name_0), &G_context.tx_info.transaction.calldata.calldata[0]);
         format_calldata_display(g_calldata_0, sizeof(g_calldata_0), &G_context.tx_info.transaction.calldata.calldata[0]);
         ux_display_transaction_flow[index++] = &ux_display_calldata_0_step;
     }
 
     if (G_context.tx_info.transaction.calldata.calldata_length >= 2) {
-        if (G_context.tx_info.transaction.calldata.calldata[1].name_len > 0) {
-            snprintf(g_calldata_name_1, sizeof(g_calldata_name_1), "%s", G_context.tx_info.transaction.calldata.calldata[1].name);
-            g_calldata_name_1[G_context.tx_info.transaction.calldata.calldata[1].name_len] = '\0';
-        }
-        else {
-            snprintf(g_calldata_name_1, sizeof(g_calldata_name_1), "%s", "Calldata 1:\0");
-        }
+        format_calldata_name_display(g_calldata_name_1, sizeof(g_calldata_name_1), &G_context.tx_info.transaction.calldata.calldata[1]);
         format_calldata_display(g_calldata_1, sizeof(g_calldata_1), &G_context.tx_info.transaction.calldata.calldata[1]);
         ux_display_transaction_flow[index++] = &ux_display_calldata_1_step;
     }
 
     if (G_context.tx_info.transaction.calldata.calldata_length >= 3) {
-        if (G_context.tx_info.transaction.calldata.calldata[2].name_len > 0) {
-            snprintf(g_calldata_name_2, sizeof(g_calldata_name_2), "%s", G_context.tx_info.transaction.calldata.calldata[2].name);
-            g_calldata_name_2[G_context.tx_info.transaction.calldata.calldata[2].name_len] = '\0';
-        }
-        else {
-            snprintf(g_calldata_name_2, sizeof(g_calldata_name_2), "%s", "Calldata 2:\0");
-        }
+        format_calldata_name_display(g_calldata_name_2, sizeof(g_calldata_name_2), &G_context.tx_info.transaction.calldata.calldata[2]);
         format_calldata_display(g_calldata_2, sizeof(g_calldata_2), &G_context.tx_info.transaction.calldata.calldata[2]);
         ux_display_transaction_flow[index++] = &ux_display_calldata_2_step;
     }
