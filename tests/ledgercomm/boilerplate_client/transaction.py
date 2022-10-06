@@ -40,18 +40,16 @@ class Transaction:
 
         # chunk n = calldata chunks
         for data in self.calldata:
-            if (data[:2] == '0x'):
+            if (data[1][:2] == '0x'):
                 chunk = b"".join([
-                    #int(len("address")).to_bytes(1, byteorder="big"),
-                    #"address".encode('ascii'),
-                    int("0").to_bytes(1, byteorder="big"),
-                    int(data[2:], 16).to_bytes(32, byteorder="big")])
+                    int(len(data[0])).to_bytes(1, byteorder="big"),
+                    data[0].encode('ascii'),
+                    int(data[1][2:], 16).to_bytes(32, byteorder="big")])
             else:
                 chunk = b"".join([
-                    #int(len("value")).to_bytes(1, byteorder="big"),
-                    #"value".encode('ascii'),
-                    int("0").to_bytes(1, byteorder="big"),
-                    int(data).to_bytes(32, byteorder="big")])
+                    int(len(data[0])).to_bytes(1, byteorder="big"),
+                    data[0].encode('ascii'),
+                    int(data[1]).to_bytes(32, byteorder="big")])
             
             if (data == self.calldata[-1]):
                 yield True, chunk

@@ -18,7 +18,7 @@ def test_sign_tx(cmd, button, model):
     signer_address = "0x7e00d496e324876bbc8531f2d9a82bf154d1a04a50218ee74cdd372f75a551a"
     contract_address = "0x0507446de5cfcb833d4e786f3a0510deb2429ae753741a836a7efa80c9c747cb"
     selector = 'mint'
-    calldata=[("", "0x7e00d496e324876bbc8531f2d9a82bf154d1a04a50218ee74cdd372f75a551a"), ("", "1000")]
+    calldata=[("To", "0x7e00d496e324876bbc8531f2d9a82bf154d1a04a50218ee74cdd372f75a551a"), ("Quantity", "1000")]
     chain_id = "0x534e5f474f45524c49"
     max_fee = "1000000000000000"
     version = 1

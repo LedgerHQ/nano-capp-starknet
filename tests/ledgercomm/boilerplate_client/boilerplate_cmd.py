@@ -135,9 +135,7 @@ class BoilerplateCommand:
             self.transport.send_raw(chunk)
 
             if is_last:
-                
-                # let Nano compute Pedersen hash :(
-                time.sleep(15)
+                time.sleep(2)
 
                 # Review Transaction
                 button.right_click()
@@ -155,6 +153,11 @@ class BoilerplateCommand:
                     button.right_click()
                     button.right_click()
                 # Selector
+                button.right_click()
+                # Calldata #1
+                button.right_click()
+                button.right_click()
+                # Calldata #2
                 button.right_click()
                 # Approve
                 button.both_click()
