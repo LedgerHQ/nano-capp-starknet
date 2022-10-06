@@ -35,6 +35,7 @@
 #include "../transaction/types.h"
 #include "../common/bip32.h"
 #include "../common/format.h"
+#include "../transaction/types.h"
 
 static action_validate_cb g_validate_callback;
 //static char g_amount[30];
@@ -46,6 +47,42 @@ static char g_hash[68];
 static char g_account_address[68];
 static char g_to_address[68];
 static char g_selector[32];
+
+static char g_calldata_0[65];
+static char g_calldata_name_0[32];
+static char g_calldata_1[65];
+static char g_calldata_name_1[32];
+static char g_calldata_2[65];
+static char g_calldata_name_2[32];
+
+
+int format_calldata_display(char* output, uint8_t output_size, callData_item_t* data) {
+    
+    uint8_t bytes = 32;
+    uint8_t idx = 0;
+    uint32_t val = 0;
+
+    memset(output, 0, output_size);
+    
+    while ((data->item[idx++] == 0) && (bytes > 0))
+        bytes--;
+
+    if (bytes > 4){
+        snprintf(output, output_size, "%.*H", bytes, data->item);
+    }
+    else {
+        val = 
+            ((uint32_t)data->item[28] << 24) +
+            ((uint32_t)data->item[29] << 16) +
+            ((uint32_t)data->item[30] << 8) +
+            (uint32_t)data->item[31];    
+ 
+        snprintf(output, output_size, "%d", val);
+    }
+
+    return 0;
+}
+
 
 // Step with icon and text
 UX_STEP_NOCB(ux_display_confirm_pubkey_step, pn, {&C_icon_eye, "Confirm Pubkey"});
@@ -151,6 +188,27 @@ UX_STEP_NOCB(ux_display_selector_step,
                  .text = g_selector,
              });
 
+UX_STEP_NOCB(ux_display_calldata_0_step,
+             bnnn_paging,
+             {
+                 .title = g_calldata_name_0,
+                 .text = g_calldata_0,
+             });
+
+UX_STEP_NOCB(ux_display_calldata_1_step,
+             bnnn_paging,
+             {
+                 .title = g_calldata_name_1,
+                 .text = g_calldata_1,
+             });
+
+UX_STEP_NOCB(ux_display_calldata_2_step,
+             bnnn_paging,
+             {
+                 .title = "Calldata #3",
+                 .text = g_calldata_2,
+             });
+
 // FLOW to display transaction information:
 // #1 screen : eye icon + "Review Transaction"
 // #2 screen : display account contract address
@@ -183,6 +241,46 @@ int ui_display_transaction() {
     memset(g_selector, 0, sizeof(g_selector));
     snprintf(g_selector, G_context.tx_info.transaction.calldata.entry_point_length + 1, "%s", G_context.tx_info.transaction.calldata.entry_point);
     ux_display_transaction_flow[index++] = &ux_display_selector_step;
+
+    /* start display calldata */
+
+    if (G_context.tx_info.transaction.calldata.calldata_length >= 1) {
+        if (G_context.tx_info.transaction.calldata.calldata[0].name_len > 0) {
+            snprintf(g_calldata_name_0, sizeof(g_calldata_name_0), "%s", G_context.tx_info.transaction.calldata.calldata[0].name);
+            g_calldata_name_0[G_context.tx_info.transaction.calldata.calldata[0].name_len] = '\0';
+        }
+        else {
+            snprintf(g_calldata_name_0, sizeof(g_calldata_name_0), "%s", "Calldata 0:\0");
+        }
+        format_calldata_display(g_calldata_0, sizeof(g_calldata_0), &G_context.tx_info.transaction.calldata.calldata[0]);
+        ux_display_transaction_flow[index++] = &ux_display_calldata_0_step;
+    }
+
+    if (G_context.tx_info.transaction.calldata.calldata_length >= 2) {
+        if (G_context.tx_info.transaction.calldata.calldata[1].name_len > 0) {
+            snprintf(g_calldata_name_1, sizeof(g_calldata_name_1), "%s", G_context.tx_info.transaction.calldata.calldata[1].name);
+            g_calldata_name_1[G_context.tx_info.transaction.calldata.calldata[1].name_len] = '\0';
+        }
+        else {
+            snprintf(g_calldata_name_1, sizeof(g_calldata_name_1), "%s", "Calldata 1:\0");
+        }
+        format_calldata_display(g_calldata_1, sizeof(g_calldata_1), &G_context.tx_info.transaction.calldata.calldata[1]);
+        ux_display_transaction_flow[index++] = &ux_display_calldata_1_step;
+    }
+
+    if (G_context.tx_info.transaction.calldata.calldata_length >= 3) {
+        if (G_context.tx_info.transaction.calldata.calldata[2].name_len > 0) {
+            snprintf(g_calldata_name_2, sizeof(g_calldata_name_2), "%s", G_context.tx_info.transaction.calldata.calldata[2].name);
+            g_calldata_name_2[G_context.tx_info.transaction.calldata.calldata[2].name_len] = '\0';
+        }
+        else {
+            snprintf(g_calldata_name_2, sizeof(g_calldata_name_2), "%s", "Calldata 2:\0");
+        }
+        format_calldata_display(g_calldata_2, sizeof(g_calldata_2), &G_context.tx_info.transaction.calldata.calldata[2]);
+        ux_display_transaction_flow[index++] = &ux_display_calldata_2_step;
+    }
+
+    /* end display calldata */
 
     g_validate_callback = &ui_action_validate;
     ux_display_transaction_flow[index++] = &ux_display_approve_step;

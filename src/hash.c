@@ -105,11 +105,11 @@ static void accum_ec_mul(ECPoint *hash, uint8_t *buf, int len, int pedersen_idx)
     if (!allzeroes(buf, len)) {
         uint8_t pad[32];
         memcpy(tmp, PEDERSEN_POINTS[pedersen_idx], sizeof(ECPoint));
-        io_seproxyhal_io_heartbeat();
+        //io_seproxyhal_io_heartbeat();
         memset(pad, 0, sizeof(pad));
         memmove(pad + 32 - len, buf, len);
         cx_ecfp_scalar_mult(CX_CURVE_Stark256, tmp, sizeof(ECPoint), pad, sizeof(pad));
-        io_seproxyhal_io_heartbeat();
+        //io_seproxyhal_io_heartbeat();
         cx_ecfp_add_point(CX_CURVE_Stark256, *hash, *hash, tmp, sizeof(ECPoint));
     }
 }
@@ -121,6 +121,8 @@ static void pedersen(
     
     ECPoint hash;
 
+    PRINTF("Pedersen: IN\n");
+
     memcpy(hash, PEDERSEN_SHIFT, sizeof(hash));
 
     accum_ec_mul(&hash, a, 1, 1);
@@ -129,6 +131,8 @@ static void pedersen(
     accum_ec_mul(&hash, b + 1, FIELD_ELEMENT_SIZE - 1, 2);
 
     memcpy(res, hash + 1, FIELD_ELEMENT_SIZE);
+    
+    PRINTF("Pedersen: OUT\n");
 }
 
 
@@ -198,7 +202,7 @@ static int compute_hash_on_calldata(callData_t *calldata, FieldElement hash) {
     b[31] = calldata->calldata_length;
     pedersen(a, a, b);
     for (i = 0; i < calldata->calldata_length; i++) {
-        pedersen(a, a, calldata->calldata + i * 32);
+        pedersen(a, a, calldata->calldata[i].item);
     }
     b[31] = 1 + calldata->callarray_length * 4 + 1 + calldata->calldata_length;
     pedersen(hash, a, b);

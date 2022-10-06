@@ -22,6 +22,12 @@ typedef enum {
 } parser_status_e;
 
 typedef struct {
+    uint8_t name_len;
+    char* name;
+    uint8_t* item;    
+} callData_item_t;
+
+typedef struct {
     uint8_t callarray_length;
     uint8_t* to;
     uint8_t entry_point_length;
@@ -30,7 +36,7 @@ typedef struct {
     uint8_t data_offset;
     uint8_t data_length;
     uint8_t calldata_length;
-    uint8_t* calldata;
+    callData_item_t calldata[5];
 } callData_t;
 
 typedef struct {

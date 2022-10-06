@@ -28,6 +28,8 @@
 
 parser_status_e transaction_deserialize(buffer_t *buf, transaction_t *tx) {
 
+    int i;
+
     if (buf->size > MAX_TX_LEN) {
         return WRONG_LENGTH_ERROR;
     }
@@ -100,9 +102,12 @@ parser_status_e transaction_deserialize(buffer_t *buf, transaction_t *tx) {
 
     tx->calldata.calldata_length = tx->calldata.data_length;
     
-    tx->calldata.calldata = (uint8_t *) (buf->ptr + buf->offset);
-    if (!buffer_seek_cur(buf, 32 * tx->calldata.calldata_length)) {
-        return CALLDATA_PARSING_ERROR;
+    for (i = 0; i < tx->calldata.calldata_length; i++){
+        buffer_read_u8(buf, &(tx->calldata.calldata[i].name_len));
+        tx->calldata.calldata[i].name = (char *) (buf->ptr + buf->offset);
+        buffer_seek_cur(buf, tx->calldata.calldata[i].name_len);
+        tx->calldata.calldata[i].item = (uint8_t *) (buf->ptr + buf->offset);
+        buffer_seek_cur(buf, 32);
     }
 
     PRINTF("calldata OK %d \n", buf->offset);

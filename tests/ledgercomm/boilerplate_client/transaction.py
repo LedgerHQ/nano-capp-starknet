@@ -24,7 +24,6 @@ class Transaction:
         self.calldata = calldata
 
     def serialize(self) -> Iterator[Tuple[bool, bytes]]:
-        # chunk n = calldata chunks
         yield False, b"".join([
             # chunk 1 = accountAddress (32 bytes) + maxFee (32 bytes) + nonce (32 bytes) + version (32 bytes) + chain_id (32 bytes)= 160 bytes
             int(self.aa[2:], 16).to_bytes(32, byteorder="big"),
@@ -39,11 +38,20 @@ class Transaction:
             bytes(self.selector, 'utf-8'),
             int(len(self.calldata)).to_bytes(1, byteorder="big")])
 
+        # chunk n = calldata chunks
         for data in self.calldata:
             if (data[:2] == '0x'):
-                chunk = b"".join([int(data[2:], 16).to_bytes(32, byteorder="big")])
+                chunk = b"".join([
+                    #int(len("address")).to_bytes(1, byteorder="big"),
+                    #"address".encode('ascii'),
+                    int("0").to_bytes(1, byteorder="big"),
+                    int(data[2:], 16).to_bytes(32, byteorder="big")])
             else:
-                chunk = b"".join([int(data).to_bytes(32, byteorder="big")])
+                chunk = b"".join([
+                    #int(len("value")).to_bytes(1, byteorder="big"),
+                    #"value".encode('ascii'),
+                    int("0").to_bytes(1, byteorder="big"),
+                    int(data).to_bytes(32, byteorder="big")])
             
             if (data == self.calldata[-1]):
                 yield True, chunk
