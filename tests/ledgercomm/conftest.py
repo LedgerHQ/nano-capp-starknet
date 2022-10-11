@@ -15,7 +15,7 @@ def pytest_addoption(parser):
                      action="store_true")
     parser.addoption("--model",
                      action="store", 
-                     default="nanos")
+                     default="nanosp")
 
 
 @pytest.fixture(scope="module")
@@ -49,7 +49,7 @@ def model(pytestconfig):
 @pytest.fixture(scope="module")
 def button(headless):
     if headless:
-        button_client = ButtonTCP(server="127.0.0.1", port=42000)
+        button_client = ButtonTCP(url="http://127.0.0.1", port=5001)
     else:
         button_client = ButtonFake()
 

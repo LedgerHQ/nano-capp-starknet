@@ -35,70 +35,50 @@ static unsigned char const STARK_DERIVE_BIAS[] = {
     0xf8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x0e, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xf7,
     0x38, 0xa1, 0x3b, 0x4b, 0x92, 0x0e, 0x94, 0x11, 0xae, 0x6d, 0xa5, 0xf4, 0x0b, 0x03, 0x58, 0xb1};
 
-int crypto_derive_private_key(cx_ecfp_private_key_t *private_key,
-                              uint8_t chain_code[static 32],
-                              const uint32_t *bip32_path,
-                              uint8_t bip32_path_len) {
-    uint8_t raw_private_key[32] = {0};
-
-    BEGIN_TRY {
-        TRY {
-            // derive the seed with bip32_path
-            os_perso_derive_node_bip32(CX_CURVE_256K1,
-                                       bip32_path,
-                                       bip32_path_len,
-                                       raw_private_key,
-                                       chain_code);
-            // new private_key from raw
-            cx_ecfp_init_private_key(CX_CURVE_256K1,
-                                     raw_private_key,
-                                     sizeof(raw_private_key),
-                                     private_key);
-        }
-        CATCH_OTHER(e) {
-            THROW(e);
-        }
-        FINALLY {
-            explicit_bzero(&raw_private_key, sizeof(raw_private_key));
-        }
-    }
-    END_TRY;
-
-    return 0;
-}
-
-int crypto_init_public_key(cx_ecfp_private_key_t *private_key,
-                           cx_ecfp_public_key_t *public_key,
+int crypto_init_public_key(uint32_t *bip32_path,
+                           uint8_t bip32_path_len,
                            uint8_t raw_public_key[static 64]) {
-    // generate corresponding public key
-    cx_ecfp_generate_pair(CX_CURVE_Stark256, public_key, private_key, 1);
 
-    memmove(raw_public_key, public_key->W + 1, 64);
+    cx_ecfp_private_key_t private_key = {0};
+    cx_ecfp_public_key_t public_key = {0};
+
+    // derive private key according to EIP 2645
+    eip2645_derive_private_key(&private_key,
+                              bip32_path,
+                              bip32_path_len);
+
+    // generate corresponding public key
+    cx_ecfp_generate_pair(CX_CURVE_Stark256, &public_key, &private_key, 1);
+
+    memmove(raw_public_key, public_key.W + 1, 64);
+
+     // reset private key
+    explicit_bzero(&private_key, sizeof(private_key));
 
     return 0;
 }
 
-int crypto_sign_message() {
+int crypto_sign_hash(uint32_t *bip32_path, uint8_t bip32_path_len, hash_ctx_t *hash_info) {
     cx_ecfp_private_key_t private_key = {0};
     uint32_t info = 0;
     int sig_len = 0;
 
-    // derive private key according to BIP32 path
+    // derive private key according to EIP 2645
     eip2645_derive_private_key(&private_key,
-                              G_context.bip32_path,
-                              G_context.bip32_path_len);
+                              bip32_path,
+                              bip32_path_len);
 
     BEGIN_TRY {
         TRY {
             sig_len = cx_ecdsa_sign(&private_key,
                                     CX_RND_RFC6979 | CX_LAST,
                                     CX_SHA256,
-                                    G_context.hash_info.m_hash,
-                                    sizeof(G_context.hash_info.m_hash),
-                                    G_context.hash_info.signature,
-                                    sizeof(G_context.hash_info.signature),
+                                    hash_info->m_hash,
+                                    sizeof(hash_info->m_hash),
+                                    hash_info->signature,
+                                    sizeof(hash_info->signature),
                                     &info);
-            PRINTF("Signature: %.*H\n", sig_len, G_context.hash_info.signature);
+            PRINTF("Signature: %.*H\n", sig_len, hash_info->signature);
         }
         CATCH_OTHER(e) {
             THROW(e);
@@ -113,8 +93,8 @@ int crypto_sign_message() {
         return -1;
     }
 
-    G_context.hash_info.signature_len = sig_len;
-    G_context.hash_info.v = (uint8_t)(info & CX_ECCINFO_PARITY_ODD);
+    hash_info->signature_len = sig_len;
+    hash_info->v = (uint8_t)(info & CX_ECCINFO_PARITY_ODD);
 
     return 0;
 }
@@ -152,6 +132,20 @@ int eip2645_derive_private_key(cx_ecfp_private_key_t *private_key,
                 }
                 index++;
             }
+
+            // !!!!!!!!!!!!!!! ONLY FOR TESTING !!!!!!!!!!!!!!!!!!!  
+            // set a custom private key
+            /*
+            memset(raw_private_key, 0, 32);
+            raw_private_key[16] = 0xe3; raw_private_key[17] = 0xe7; 
+            raw_private_key[18] = 0x06; raw_private_key[19] = 0x82;
+            raw_private_key[20] = 0xc2; raw_private_key[21] = 0x09;
+            raw_private_key[22] = 0x4c; raw_private_key[23] = 0xac; 
+            raw_private_key[24] = 0x62; raw_private_key[25] = 0x9f; 
+            raw_private_key[26] = 0x6f; raw_private_key[27] = 0xbe;
+            raw_private_key[28]= 0xd8; raw_private_key[29] = 0x2c; 
+            raw_private_key[30] = 0x07; raw_private_key[31] = 0xcd;
+            */
 
             // new private_key from raw
             cx_ecfp_init_private_key(CX_CURVE_Stark256,

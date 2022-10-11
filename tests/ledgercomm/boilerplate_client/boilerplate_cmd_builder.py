@@ -8,7 +8,6 @@ from boilerplate_client.utils import bip32_path_from_string
 
 MAX_APDU_LEN: int = 255
 
-
 def chunkify(data: bytes, chunk_len: int) -> Iterator[Tuple[bool, bytes]]:
     size: int = len(data)
 
@@ -29,10 +28,11 @@ def chunkify(data: bytes, chunk_len: int) -> Iterator[Tuple[bool, bytes]]:
 
 
 class InsType(enum.IntEnum):
-    INS_GET_VERSION = 0x03
-    INS_GET_APP_NAME = 0x04
-    INS_GET_PUBLIC_KEY = 0x05
-    INS_SIGN_TX = 0x06
+    INS_GET_VERSION = 0x00
+    INS_GET_APP_NAME = 0x01
+    INS_GET_PUBLIC_KEY = 0x02
+    INS_SIGN_HASH = 0x03
+    INS_SIGN_TX = 0x04
 
 
 class BoilerplateCommandBuilder:
@@ -49,7 +49,7 @@ class BoilerplateCommandBuilder:
         Whether you want to see logging or not.
 
     """
-    CLA: int = 0xE0
+    CLA: int = 0x5A
 
     def __init__(self, debug: bool = False):
         """Init constructor."""
@@ -171,6 +171,41 @@ class BoilerplateCommandBuilder:
                               p2=0x00,
                               cdata=cdata)
 
+    def sign_hash(self, bip32_path: str, hash: bytes) -> Iterator[bytes]:
+        """Command builder for INS_SIGN_HASH.
+
+        Parameters
+        ----------
+        bip32_path : str
+            String representation of BIP32 path.
+        hash : bytes
+            Representation of the hash to be signed.
+
+        Yields
+        -------
+        bytes
+            APDU command chunk for INS_SIGN_HASH.
+
+        """
+        bip32_paths: List[bytes] = bip32_path_from_string(bip32_path)
+
+        cdata: bytes = b"".join([
+            len(bip32_paths).to_bytes(1, byteorder="big"),
+            *bip32_paths
+        ])
+
+        yield self.serialize(cla=self.CLA,
+                                ins=InsType.INS_SIGN_HASH,
+                                p1=0x00,
+                                p2=0x00,
+                                cdata=cdata)
+
+        yield self.serialize(cla=self.CLA,
+                                ins=InsType.INS_SIGN_HASH,
+                                p1=0x02,
+                                p2=0x00,
+                                cdata=hash)
+
     def sign_tx(self, bip32_path: str, transaction: Transaction) -> Iterator[Tuple[bool, bytes]]:
         """Command builder for INS_SIGN_TX.
 
@@ -200,16 +235,13 @@ class BoilerplateCommandBuilder:
                                     p2=0x80,
                                     cdata=cdata)
 
-        tx: bytes = transaction.serialize()
-
-        for i, (is_last, chunk) in enumerate(chunkify(tx, MAX_APDU_LEN)):
+        for i, (is_last, chunk) in enumerate(transaction.serialize()):
             if is_last:
                 yield True, self.serialize(cla=self.CLA,
                                            ins=InsType.INS_SIGN_TX,
                                            p1=i + 1,
                                            p2=0x00,
                                            cdata=chunk)
-                return
             else:
                 yield False, self.serialize(cla=self.CLA,
                                             ins=InsType.INS_SIGN_TX,

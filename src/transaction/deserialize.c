@@ -19,44 +19,98 @@
 #include "utils.h"
 #include "types.h"
 #include "../common/buffer.h"
+#include "os.h"
+
+
+/* chunk 1 = accountAddress (32 bytes) + maxFee (32 bytes) + nonce (32 bytes) + version (32 bytes) = 128 bytes*/
+/* chunk 2 = to (32 bytes) + selector length (1 byte) + selector (selector length bytes) + call_data length (1 byte) */
+/* chunk . = calldata */
 
 parser_status_e transaction_deserialize(buffer_t *buf, transaction_t *tx) {
+
+    int i;
+
     if (buf->size > MAX_TX_LEN) {
         return WRONG_LENGTH_ERROR;
     }
 
-    // nonce
-    if (!buffer_read_u64(buf, &tx->nonce, BE)) {
+    tx->sender_address = (uint8_t *) (buf->ptr + buf->offset);
+    if (!buffer_seek_cur(buf, 32)) {
+        return SENDER_ADDRESS_PARSING_ERROR;
+    }
+    
+    PRINTF("senderAddress OK %d \n", buf->offset);
+
+    tx->max_fee = (uint8_t *) (buf->ptr + buf->offset);
+    if (!buffer_seek_cur(buf, 32)) {
+        return MAX_FEE_PARSING_ERROR;
+    }
+    
+    
+    PRINTF("maxFee OK %d \n", buf->offset);
+
+    tx->nonce = (uint8_t *) (buf->ptr + buf->offset);
+    if (!buffer_seek_cur(buf, 32)) {
         return NONCE_PARSING_ERROR;
     }
 
-    tx->to = (uint8_t *) (buf->ptr + buf->offset);
+    
+    PRINTF("nonce OK %d \n", buf->offset);
 
-    // TO address
-    if (!buffer_seek_cur(buf, ADDRESS_LEN)) {
+    tx->version = (uint8_t *) (buf->ptr + buf->offset);
+    if (!buffer_seek_cur(buf, 32)) {
+        return VERSION_PARSING_ERROR;
+    }
+
+    PRINTF("version OK %d \n", buf->offset);
+
+    tx->chain_id = (uint8_t *) (buf->ptr + buf->offset);
+    if (!buffer_seek_cur(buf, 32)) {
+        return VERSION_PARSING_ERROR;
+    }
+    PRINTF("chain_id OK %d \n", buf->offset);
+
+    tx->calldata.callarray_length = 1;
+
+    tx->calldata.to = (uint8_t *) (buf->ptr + buf->offset);
+    if (!buffer_seek_cur(buf, 32)) {
         return TO_PARSING_ERROR;
     }
+    
+    PRINTF("to OK %d \n", buf->offset);
 
-    // amount value
-    if (!buffer_read_u64(buf, &tx->value, BE)) {
-        return VALUE_PARSING_ERROR;
+    if (!buffer_read_u8(buf, &(tx->calldata.entry_point_length))) {
+        return SELECTOR_LENGTH_PARSING_ERROR;
     }
 
-    // length of memo
-    if (!buffer_read_varint(buf, &tx->memo_len) && tx->memo_len > MAX_MEMO_LEN) {
-        return MEMO_LENGTH_ERROR;
+    PRINTF("entry_point_length OK %d \n", buf->offset);
+
+    tx->calldata.entry_point = (uint8_t *) (buf->ptr + buf->offset);
+    if (!buffer_seek_cur(buf, tx->calldata.entry_point_length)) {
+        return SELECTOR_PARSING_ERROR;
     }
 
-    // memo
-    tx->memo = (uint8_t *) (buf->ptr + buf->offset);
+    PRINTF("selector OK %d \n", buf->offset);
 
-    if (!buffer_seek_cur(buf, tx->memo_len)) {
-        return MEMO_PARSING_ERROR;
+    tx->calldata.data_offset = 0;
+
+    if (!buffer_read_u8(buf, &(tx->calldata.data_length))) {
+        return DATA_LENGTH_PARSING_ERROR;
     }
 
-    if (!transaction_utils_check_encoding(tx->memo, tx->memo_len)) {
-        return MEMO_ENCODING_ERROR;
+    PRINTF("data_length OK %d \n", buf->offset);
+
+    tx->calldata.calldata_length = tx->calldata.data_length;
+    
+    for (i = 0; i < tx->calldata.calldata_length; i++){
+        buffer_read_u8(buf, &(tx->calldata.calldata[i].name_len));
+        tx->calldata.calldata[i].name = (char *) (buf->ptr + buf->offset);
+        buffer_seek_cur(buf, tx->calldata.calldata[i].name_len);
+        tx->calldata.calldata[i].item = (uint8_t *) (buf->ptr + buf->offset);
+        buffer_seek_cur(buf, 32);
     }
+
+    PRINTF("calldata OK %d \n", buf->offset);
 
     return (buf->offset == buf->size) ? PARSING_OK : WRONG_LENGTH_ERROR;
 }

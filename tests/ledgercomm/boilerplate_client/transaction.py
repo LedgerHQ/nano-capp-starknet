@@ -1,5 +1,6 @@
 from io import BytesIO
-from typing import Union
+from sys import byteorder
+from typing import Iterator, Union, Tuple
 
 from boilerplate_client.utils import (read, read_uint, read_varint,
                                       write_varint, UINT64_MAX)
@@ -10,29 +11,50 @@ class TransactionError(Exception):
 
 
 class Transaction:
-    def __init__(self, nonce: int, to: Union[str, bytes], value: int, memo: str) -> None:
-        self.nonce: int = nonce
-        self.to: bytes = bytes.fromhex(to[2:]) if isinstance(to, str) else to
-        self.value: int = value
-        self.memo: bytes = memo.encode("ascii")
+    def __init__(self, aa, maxfee, nonce, version, chainid, to, selector, calldata) -> None:
 
-        if not (0 <= self.nonce <= UINT64_MAX):
-            raise TransactionError(f"Bad nonce: '{self.nonce}'!")
+        self.aa = aa
+        self.maxfee = maxfee
+        self.nonce = nonce
+        self.version = version
+        self.chainid = chainid
+        
+        self.to = to
+        self.selector = selector
+        self.calldata = calldata
 
-        if not (0 <= self.value <= UINT64_MAX):
-            raise TransactionError(f"Bad value: '{self.value}'!")
+    def serialize(self) -> Iterator[Tuple[bool, bytes]]:
+        yield False, b"".join([
+            # chunk 1 = accountAddress (32 bytes) + maxFee (32 bytes) + nonce (32 bytes) + version (32 bytes) + chain_id (32 bytes)= 160 bytes
+            int(self.aa[2:], 16).to_bytes(32, byteorder="big"),
+            int(self.maxfee).to_bytes(32, byteorder="big"),
+            self.nonce.to_bytes(32, byteorder="big"),
+            self.version.to_bytes(32, byteorder="big"),
+            int(self.chainid, 16).to_bytes(32, byteorder="big")])
 
-        if len(self.to) != 20:
-            raise TransactionError(f"Bad address: '{self.to}'!")
+            # chunk 2 = to (32 bytes) + selector length (1 byte) + selector (selector length bytes) + call_data length (1 byte)
+        yield False, b"".join([int(self.to[2:], 16).to_bytes(32, byteorder="big"),
+            int(len(self.selector)).to_bytes(1, byteorder="big"),
+            bytes(self.selector, 'utf-8'),
+            int(len(self.calldata)).to_bytes(1, byteorder="big")])
 
-    def serialize(self) -> bytes:
-        return b"".join([
-            self.nonce.to_bytes(8, byteorder="big"),
-            self.to,
-            self.value.to_bytes(8, byteorder="big"),
-            write_varint(len(self.memo)),
-            self.memo
-        ])
+        # chunk n = calldata chunks
+        for data in self.calldata:
+            if (data[1][:2] == '0x'):
+                chunk = b"".join([
+                    int(len(data[0])).to_bytes(1, byteorder="big"),
+                    data[0].encode('ascii'),
+                    int(data[1][2:], 16).to_bytes(32, byteorder="big")])
+            else:
+                chunk = b"".join([
+                    int(len(data[0])).to_bytes(1, byteorder="big"),
+                    data[0].encode('ascii'),
+                    int(data[1]).to_bytes(32, byteorder="big")])
+            
+            if (data == self.calldata[-1]):
+                yield True, chunk
+            else:
+                yield False, chunk
 
     @classmethod
     def from_bytes(cls, hexa: Union[bytes, BytesIO]):

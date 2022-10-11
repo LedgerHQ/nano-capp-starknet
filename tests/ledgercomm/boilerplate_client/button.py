@@ -1,5 +1,6 @@
 from abc import ABCMeta, abstractmethod
 import socket
+import requests
 
 
 class Button(metaclass=ABCMeta):
@@ -35,18 +36,20 @@ class ButtonFake(Button):
 
 
 class ButtonTCP(Button):
-    def __init__(self, server: str, port: int) -> None:
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.connect((server, port))
+    def __init__(self, url: str, port: int) -> None:
+        self.url = url+':'+str(port)
 
     def right_click(self):
-        self.socket.sendall(b"Rr")
+        action = {"action":"press-and-release"}
+        requests.post(self.url+'/button/right', json=action)
 
     def left_click(self):
-        self.socket.sendall(b"Ll")
+        action = {"action":"press-and-release"}
+        requests.post(self.url+'/button/left', json=action)
 
     def both_click(self):
-        self.socket.sendall(b"LRlr")
+        action = {"action":"press-and-release"}
+        requests.post(self.url+'/button/both', json=action)
 
     def close(self):
-        self.socket.close()
+        pass

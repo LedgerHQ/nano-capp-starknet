@@ -66,11 +66,11 @@ int handler_sign_hash(buffer_t *cdata, uint8_t chunk, bool display) {
         else {
             G_context.state = STATE_APPROVED;
 
-            if (crypto_sign_message() < 0) {
+            if (crypto_sign_hash(G_context.bip32_path, G_context.bip32_path_len, &G_context.hash_info) < 0) {
                 G_context.state = STATE_NONE;
                 return io_send_sw(SW_SIGNATURE_FAIL);
             } else {
-                return helper_send_response_sig();
+                return helper_send_response_sig(&G_context.hash_info);
             }
         }
     }
