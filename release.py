@@ -35,7 +35,7 @@ def main(argv):
         shutil.copyfile(r'bin/app.hex', r'pkg/nanosp/app_nanosp.hex')
 
     elif target == 'TARGET_NANOS':
-        update_manifest('nanos/nanos.json', version)
+        update_manifest('pkg/nanos/nanos.json', version)
         shutil.copyfile(r'bin/app.hex', r'pkg/nanos/app_nanos.hex')
 
 if __name__ == "__main__":

@@ -1,12 +1,16 @@
 {
     "name": "STARKNET",
-    "version": "1.0.0",
+    "version": "2.0.0",
     "icon": "nanos_starknet.gif",
     "targetId": "0x31100004",
     "flags": "0x000",
     "derivationPath": {
-        "curves": ["secp256k1"],
-        "path": ["m/2645'"]
+        "curves": [
+            "secp256k1"
+        ],
+        "path": [
+            "m/2645'"
+        ]
     },
     "binary": "app_nanos.hex",
     "dataSize": 0
