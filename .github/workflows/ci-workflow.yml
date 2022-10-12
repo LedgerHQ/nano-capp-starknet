@@ -114,7 +114,7 @@ jobs:
           python-version: '3.9'
       - name: Install dependencies
         run: |
-          apt update && apt install -qy netcat libgmp3-dev # /!\ needed when installing cairo-lang
+          apt update && apt install -qy build-essential netcat libgmp3-dev # /!\ needed when installing cairo-lang
           pip install ecdsa fastecdsa sympy
           pip install cairo-lang
           pip install requests ledgercomm
