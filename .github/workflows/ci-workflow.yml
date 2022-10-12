@@ -81,49 +81,49 @@ jobs:
 #          name: documentation
 #          path: doc/html
 #
-#  job_functional_test_1:
-#    name: Functional tests with LedgerComm (on Speculos)
-#    strategy:
-#      matrix:
-#        include:
-#          - model: nanos
-#            SDK: "2.1"
-#          - model: nanosp
-#            SDK: "1.0.3"
-#    needs:
-#      - nano_build
-#    runs-on: ubuntu-latest
-#
-#    container:
-#      image: ghcr.io/ledgerhq/speculos:latest
-#      options: --entrypoint /bin/bash
-#      ports:
-#        - 9999:9999
-#        - 5001:5001
-#
-#    steps:
-#      - name: Clone
-#        uses: actions/checkout@v2
-#      - name: Download app binary
-#        uses: actions/download-artifact@v2
-#        with:
-#          name: starknet-app-${{matrix.model}}
-#          path: bin
-#      - name: Install dependencies
-#        run: |
-#          apt update && apt install -qy netcat libgmp3-dev # /!\ needed when installing cairo-lang
-#          pip install ecdsa fastecdsa sympy
-#          pip install cairo-lang
-#          pip install requests ledgercomm
-#      - name: Run test
-#        run: |
-#          nohup bash -c "python /speculos/speculos.py bin/app.elf --apdu-port 9999 --api-port 5001 --display headless --model=${{ matrix.model }} --sdk=${{ matrix.SDK }}" > speculos.log 2<&1 &
-#          until `nc -w5 -z -v 127.0.0.1 9999`; do sleep 1; done;
-#          pytest --headless tests/ledgercomm/  --model=${{ matrix.model }}
-#
-#      - name: Upload Speculos log
-#        if: ${{ always() }}
-#        uses: actions/upload-artifact@v2
-#        with:
-#          name: speculos-log
-#          path: speculos.log
+  job_functional_test_1:
+    name: Functional tests with LedgerComm (on Speculos)
+    strategy:
+      matrix:
+        include:
+          - model: nanos
+            SDK: "2.1"
+          - model: nanosp
+            SDK: "1.0.3"
+    needs:
+      - nano_build
+    runs-on: ubuntu-latest
+
+    container:
+      image: ghcr.io/ledgerhq/speculos:latest
+      options: --entrypoint /bin/bash
+      ports:
+        - 9999:9999
+        - 5001:5001
+
+    steps:
+      - name: Clone
+        uses: actions/checkout@v2
+      - name: Download app binary
+        uses: actions/download-artifact@v2
+        with:
+          name: starknet-app-${{matrix.model}}
+          path: bin
+      - name: Install dependencies
+        run: |
+          apt update && apt install -qy netcat libgmp3-dev # /!\ needed when installing cairo-lang
+          pip install ecdsa fastecdsa sympy
+          pip install cairo-lang
+          pip install requests ledgercomm
+      - name: Run test
+        run: |
+          nohup bash -c "python /speculos/speculos.py bin/app.elf --apdu-port 9999 --api-port 5001 --display headless --model=${{ matrix.model }} --sdk=${{ matrix.SDK }}" > speculos.log 2<&1 &
+          until `nc -w5 -z -v 127.0.0.1 9999`; do sleep 1; done;
+          pytest --headless tests/ledgercomm/  --model=${{ matrix.model }}
+
+      - name: Upload Speculos log
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v2
+        with:
+          name: speculos-log
+          path: speculos.log
