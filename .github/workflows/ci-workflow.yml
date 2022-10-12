@@ -17,8 +17,8 @@ jobs:
     strategy:
       matrix:
         include:
-          - SDK: "$NANOS_SDK"
-            artifact: starknet-app-nanos
+#          - SDK: "$NANOS_SDK"
+#            artifact: starknet-app-nanos
           - SDK: "$NANOSP_SDK"
             artifact: starknet-app-nanosp
     runs-on: ubuntu-latest
@@ -86,8 +86,8 @@ jobs:
     strategy:
       matrix:
         include:
-          - model: nanos
-            SDK: "2.1"
+#          - model: nanos
+#            SDK: "2.1"
           - model: nanosp
             SDK: "1.0.3"
     needs:
@@ -109,12 +109,15 @@ jobs:
         with:
           name: starknet-app-${{matrix.model}}
           path: bin
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
       - name: Install dependencies
         run: |
           apt update && apt install -qy netcat libgmp3-dev # /!\ needed when installing cairo-lang
-          sudo pip install ecdsa fastecdsa sympy
-          sudo pip install cairo-lang
-          sudo pip install requests ledgercomm
+          pip install ecdsa fastecdsa sympy
+          pip install cairo-lang
+          pip install requests ledgercomm
       - name: Run test
         run: |
           nohup bash -c "python /speculos/speculos.py bin/app.elf --apdu-port 9999 --api-port 5001 --display headless --model=${{ matrix.model }} --sdk=${{ matrix.SDK }}" > speculos.log 2<&1 &
@@ -123,7 +126,7 @@ jobs:
 
       - name: Upload Speculos log
         if: ${{ always() }}
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: speculos-log
           path: speculos.log
