@@ -27,7 +27,7 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Build
         run: |
@@ -35,7 +35,7 @@ jobs:
           make BOLOS_SDK=${{ matrix.SDK }}
 
       - name: Upload app binary
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.artifact }}
           path: bin
@@ -103,18 +103,18 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Download app binary
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: starknet-app-${{matrix.model}}
           path: bin
       - name: Install dependencies
         run: |
           apt update && apt install -qy netcat libgmp3-dev # /!\ needed when installing cairo-lang
-          pip install ecdsa fastecdsa sympy
-          pip install cairo-lang
-          pip install requests ledgercomm
+          sudo pip install ecdsa fastecdsa sympy
+          sudo pip install cairo-lang
+          sudo pip install requests ledgercomm
       - name: Run test
         run: |
           nohup bash -c "python /speculos/speculos.py bin/app.elf --apdu-port 9999 --api-port 5001 --display headless --model=${{ matrix.model }} --sdk=${{ matrix.SDK }}" > speculos.log 2<&1 &
