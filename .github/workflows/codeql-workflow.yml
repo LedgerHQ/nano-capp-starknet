@@ -1,18 +1,19 @@
 name: "CodeQL"
 
 on:
-  push:
-    branches:
-      - master
-      - develop
-  pull_request:
-    branches:
-      - master
-      - develop
+  workflow_dispatch:
+#  push:
+#    branches:
+#      - master
+#      - develop
+#  pull_request:
+#    branches:
+#      - master
+#      - develop
     # Excluded path: add the paths you want to ignore instead of deleting the workflow
-    paths-ignore:
-      - '.github/workflows/*.yml'
-      - 'tests/*'
+#    paths-ignore:
+#      - '.github/workflows/*.yml'
+#      - 'tests/*'
 
 jobs:
   analyse:
