@@ -121,7 +121,7 @@ jobs:
       - name: Run test
         run: |
           nohup bash -c "python /speculos/speculos.py bin/app.elf --apdu-port 9999 --api-port 5001 --display headless --model=${{ matrix.model }} --sdk=${{ matrix.SDK }}" > speculos.log 2<&1 &
-          until `nc -w5 -z -v 127.0.0.1 9999`; do sleep 1; done;
+          until `nc -w5 -z -v 127.0.0.1 5001`; do sleep 1; done;
           pytest --headless tests/ledgercomm/  --model=${{ matrix.model }}
 
       - name: Upload Speculos log
