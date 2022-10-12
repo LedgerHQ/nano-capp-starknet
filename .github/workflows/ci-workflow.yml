@@ -94,12 +94,12 @@ jobs:
       - nano_build
     runs-on: ubuntu-latest
 
-#    container:
-#      image: ghcr.io/ledgerhq/speculos:latest
-#      options: --entrypoint /bin/bash
-#      ports:
-#        - 9999:9999
-#        - 5001:5001
+    container:
+      image: ghcr.io/ledgerhq/speculos:latest
+      options: --entrypoint /bin/bash
+      ports:
+        - 9999:9999
+        - 5001:5001
 
     steps:
       - name: Clone
@@ -109,16 +109,9 @@ jobs:
         with:
           name: starknet-app-${{matrix.model}}
           path: bin
-      - uses: actions/setup-python@v4
-        with:
-          python-version: '3.9'
       - name: Install dependencies
         run: |
-          apt update && apt install -qy netcat libgmp3-dev \
-          cmake gcc-arm-linux-gnueabihf libc6-dev-armhf-cross gdb-multiarch \
-          python3-pyqt5 python3-construct python3-flask-restful python3-jsonschema \
-          python3-mnemonic python3-pil python3-pyelftools python3-requests \
-          qemu-user-static
+          apt update && apt install -qy build-essential netcat libgmp3-dev # /!\ needed when installing cairo-lang
           pip install ecdsa fastecdsa sympy
           pip install cairo-lang
           pip install requests ledgercomm
