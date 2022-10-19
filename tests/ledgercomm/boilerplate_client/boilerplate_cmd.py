@@ -126,6 +126,20 @@ class BoilerplateCommand:
 
         return r, s, v
 
+    def compute_pedersen(self, a: bytes, b: bytes, nb: int) -> bytes:
+
+        chunk = self.builder.pedersen(a=a, b=b, nb=nb)
+
+        self.transport.send_raw(chunk)
+
+        sw, response = self.transport.recv()
+
+        if sw != 0x9000:
+            raise DeviceException(error_code=sw, ins=InsType.INS_COMPUTE_PEDERSEN)
+
+        h: bytes = response[0:32]
+
+        return h
 
     def sign_tx(self, bip32_path: str, transaction: Transaction, button: Button, model: str) -> Tuple[int, bytes]:
         sw: int

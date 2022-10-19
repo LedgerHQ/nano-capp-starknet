@@ -73,6 +73,17 @@ int helper_send_response_sig(hash_ctx_t* hash_info) {
     return io_send_response(&(const buffer_t){.ptr = resp, .size = offset, .offset = 0}, SW_OK);
 }
 
+
+int helper_send_response_hash(hash_ctx_t* hash_info) {
+    uint8_t resp[32] = {0};
+    size_t offset = 0;
+
+    memmove(resp, hash_info->m_hash, 32);
+	offset += 32;
+
+    return io_send_response(&(const buffer_t){.ptr = resp, .size = offset, .offset = 0}, SW_OK);
+}
+
 int helper_send_response_ok() {
     uint8_t resp[1] = {0};
     return io_send_response(&(const buffer_t){.ptr = resp, .size = 0, .offset = 0}, SW_OK);

@@ -114,6 +114,58 @@ static void accum_ec_mul(ECPoint *hash, uint8_t *buf, int len, int pedersen_idx)
     }
 }
 
+static cx_err_t double_accum_ec_mul(cx_ecpoint_t *hash, uint8_t *buf1, int len1, uint8_t *buf2, int len2, int pedersen_idx)
+{
+	 cx_err_t error;
+	 cx_ecpoint_t tmp1, tmp2;
+	 uint8_t pad1[FIELD_ELEMENT_SIZE];
+	 uint8_t pad2[FIELD_ELEMENT_SIZE];
+	 uint8_t *px = NULL;
+	 uint8_t *py = NULL;
+	 bool allzero1 = false;
+	 bool allzero2 = false;
+	
+	 CX_CHECK(cx_ecpoint_alloc(&tmp1, CX_CURVE_Stark256));
+	 CX_CHECK(cx_ecpoint_alloc(&tmp2, CX_CURVE_Stark256));
+	 
+	 px = ((uint8_t *)(PEDERSEN_POINTS[pedersen_idx])) + 1;
+	 py = ((uint8_t *)(PEDERSEN_POINTS[pedersen_idx])) + 1 + FIELD_ELEMENT_SIZE;
+	 CX_CHECK(cx_ecpoint_init (&tmp1, px, FIELD_ELEMENT_SIZE, py, FIELD_ELEMENT_SIZE));
+	
+	 px = ((uint8_t *)(PEDERSEN_POINTS[pedersen_idx + 2])) + 1;
+	 py = ((uint8_t *)(PEDERSEN_POINTS[pedersen_idx + 2])) + 1 + FIELD_ELEMENT_SIZE;
+	 CX_CHECK(cx_ecpoint_init (&tmp2, px, FIELD_ELEMENT_SIZE, py, FIELD_ELEMENT_SIZE));
+
+	 memset(pad1, 0, sizeof(pad1));
+	 memset(pad2, 0, sizeof(pad2));
+
+	 allzero1 = allzeroes(buf1, len1);
+	 allzero2 = allzeroes(buf2, len2);
+
+	 if (!allzero1 && !allzero2) {
+		 memmove(pad1 + 32 - len1, buf1, len1);
+		 memmove(pad2 + 32 - len2, buf2, len2);
+		 CX_CHECK(cx_ecpoint_double_scalarmul(&tmp1, &tmp1, &tmp2, pad1, sizeof(pad1), pad2, sizeof(pad2)));
+		 CX_CHECK(cx_ecpoint_add(hash, hash, &tmp1));
+	 } else {
+		 if (!allzero2) {
+			 memmove(pad2 + 32 - len2, buf2, len2);
+			 cx_ecpoint_rnd_scalarmul(&tmp2, pad2, sizeof(pad2));
+			 cx_ecpoint_add(hash, hash, &tmp2);
+		 } else if (!allzero1) {
+			 memmove(pad1 + 32 - len1, buf1, len1);
+			 cx_ecpoint_rnd_scalarmul(&tmp1, pad1, sizeof(pad1));
+			 cx_ecpoint_add(hash, hash, &tmp1);
+		 }
+	 }
+			
+	 CX_CHECK(cx_ecpoint_destroy(&tmp1));
+	 CX_CHECK(cx_ecpoint_destroy(&tmp2));
+
+	 end:
+	 	 return error;
+}
+
 static void pedersen(
     FieldElement res,
     FieldElement a,
@@ -135,6 +187,51 @@ static void pedersen(
     PRINTF("Pedersen: OUT\n");
 }
 
+static cx_err_t pedersen_opt(
+    FieldElement res,
+    FieldElement a,
+    FieldElement b) {
+
+	cx_err_t error;
+    cx_ecpoint_t ec_hash;
+
+	cx_bn_lock(32,0);
+
+    CX_CHECK(cx_ecpoint_alloc(&ec_hash, CX_CURVE_Stark256));
+
+    PRINTF("Pedersen: IN\n");
+
+   // memcpy(hash, PEDERSEN_SHIFT, sizeof(hash));
+    uint8_t *px= ((uint8_t *)PEDERSEN_SHIFT)+1;
+    uint8_t *py= ((uint8_t *)PEDERSEN_SHIFT)+1+FIELD_ELEMENT_SIZE;
+
+    CX_CHECK(cx_ecpoint_init (&ec_hash, px, FIELD_ELEMENT_SIZE, py, FIELD_ELEMENT_SIZE)  );
+
+    CX_CHECK(double_accum_ec_mul(&ec_hash,a,1,b,1,1));
+    CX_CHECK(double_accum_ec_mul(&ec_hash,a+1,FIELD_ELEMENT_SIZE - 1,b+1,FIELD_ELEMENT_SIZE - 1,0));
+
+    CX_CHECK(cx_ecpoint_export(&ec_hash,res, FIELD_ELEMENT_SIZE, NULL, 0 ));
+
+    CX_CHECK(cx_ecpoint_destroy(&ec_hash));
+
+    PRINTF("Pedersen: OUT\n");
+	end:
+		PRINTF("Error = %x\n", error);
+		cx_bn_unlock();
+		return error;
+}
+
+void call_pedersen(uint8_t *res, uint8_t *ab, uint8_t n){
+
+	uint8_t *a = ab;
+	uint8_t *b = ab + 32;
+	uint8_t i;
+
+	for (i = 0; i < (n-1); i++){
+		pedersen_opt(a,a,b);
+	}
+	pedersen_opt(res, a, b);
+}
 
 static int get_selector_from_name(uint8_t *name, uint8_t name_length, uint8_t* selector) {
     

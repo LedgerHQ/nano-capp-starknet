@@ -33,6 +33,7 @@ class InsType(enum.IntEnum):
     INS_GET_PUBLIC_KEY = 0x02
     INS_SIGN_HASH = 0x03
     INS_SIGN_TX = 0x04
+    INS_COMPUTE_PEDERSEN = 0xFF
 
 
 class BoilerplateCommandBuilder:
@@ -206,6 +207,19 @@ class BoilerplateCommandBuilder:
                                 p2=0x00,
                                 cdata=hash)
 
+    def pedersen(self, a: bytes, b: bytes, nb: int) -> bytes:
+
+        cdata: bytes = b"".join([
+            a,
+            b
+        ])
+
+        return self.serialize(cla=self.CLA,
+                              ins=InsType.INS_COMPUTE_PEDERSEN,
+                              p1=nb,
+                              p2=0x00,
+                              cdata=cdata)
+            
     def sign_tx(self, bip32_path: str, transaction: Transaction) -> Iterator[Tuple[bool, bytes]]:
         """Command builder for INS_SIGN_TX.
 

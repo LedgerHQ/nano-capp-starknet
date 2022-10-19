@@ -30,6 +30,7 @@
 #include "../handler/get_public_key.h"
 #include "../handler/sign_tx.h"
 #include "../handler/sign_hash.h"
+#include "../handler/compute_pedersen.h"
 
 int apdu_dispatcher(const command_t *cmd) {
     if (cmd->cla != CLA) {
@@ -94,6 +95,14 @@ int apdu_dispatcher(const command_t *cmd) {
             buf.offset = 0;
 
             return handler_sign_tx(&buf, cmd->p1, (bool) (cmd->p2 & P2_MORE));
+
+		case GET_PEDERSEN:
+			buf.ptr = cmd->data;
+			buf.size = cmd->lc;
+			buf.offset = 0;
+
+			return handler_compute_pedersen(&buf, cmd->p1);
+			
         default:
             return io_send_sw(SW_INS_NOT_SUPPORTED);
     }
