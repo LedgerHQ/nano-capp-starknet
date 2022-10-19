@@ -162,7 +162,7 @@ static cx_err_t double_accum_ec_mul(cx_ecpoint_t *hash, uint8_t *buf1, int len1,
 	 CX_CHECK(cx_ecpoint_destroy(&tmp1));
 	 CX_CHECK(cx_ecpoint_destroy(&tmp2));
 
-	 end:
+end:
 	 	 return error;
 }
 
@@ -195,27 +195,25 @@ static cx_err_t pedersen_opt(
 	cx_err_t error;
     cx_ecpoint_t ec_hash;
 
+    PRINTF("Pedersen: IN\n");
 	cx_bn_lock(32,0);
 
     CX_CHECK(cx_ecpoint_alloc(&ec_hash, CX_CURVE_Stark256));
 
-    PRINTF("Pedersen: IN\n");
+    uint8_t *px= ((uint8_t *)(PEDERSEN_SHIFT[0])) + 1;
+    uint8_t *py= ((uint8_t *)(PEDERSEN_SHIFT[0])) + 1 + FIELD_ELEMENT_SIZE;
 
-   // memcpy(hash, PEDERSEN_SHIFT, sizeof(hash));
-    uint8_t *px= ((uint8_t *)PEDERSEN_SHIFT)+1;
-    uint8_t *py= ((uint8_t *)PEDERSEN_SHIFT)+1+FIELD_ELEMENT_SIZE;
+    CX_CHECK(cx_ecpoint_init (&ec_hash, px, FIELD_ELEMENT_SIZE, py, FIELD_ELEMENT_SIZE));
 
-    CX_CHECK(cx_ecpoint_init (&ec_hash, px, FIELD_ELEMENT_SIZE, py, FIELD_ELEMENT_SIZE)  );
+    CX_CHECK(double_accum_ec_mul(&ec_hash, a, 1, b, 1, 1));
+    CX_CHECK(double_accum_ec_mul(&ec_hash,a + 1,FIELD_ELEMENT_SIZE - 1, b + 1, FIELD_ELEMENT_SIZE - 1, 0));
 
-    CX_CHECK(double_accum_ec_mul(&ec_hash,a,1,b,1,1));
-    CX_CHECK(double_accum_ec_mul(&ec_hash,a+1,FIELD_ELEMENT_SIZE - 1,b+1,FIELD_ELEMENT_SIZE - 1,0));
-
-    CX_CHECK(cx_ecpoint_export(&ec_hash,res, FIELD_ELEMENT_SIZE, NULL, 0 ));
+    CX_CHECK(cx_ecpoint_export(&ec_hash,res, FIELD_ELEMENT_SIZE, NULL, 0));
 
     CX_CHECK(cx_ecpoint_destroy(&ec_hash));
 
     PRINTF("Pedersen: OUT\n");
-	end:
+end:
 		PRINTF("Error = %x\n", error);
 		cx_bn_unlock();
 		return error;
@@ -226,11 +224,16 @@ void call_pedersen(uint8_t *res, uint8_t *ab, uint8_t n){
 	uint8_t *a = ab;
 	uint8_t *b = ab + 32;
 	uint8_t i;
+	cx_err_t error;
 
 	for (i = 0; i < (n-1); i++){
-		pedersen_opt(a,a,b);
+		CX_CHECK(pedersen_opt(a, a, b));
 	}
-	pedersen_opt(res, a, b);
+	CX_CHECK(pedersen_opt(res, a, b));
+end:
+	if (error != CX_OK) {
+		memmove(res + 32 - 4, &error, 4); 
+	}
 }
 
 static int get_selector_from_name(uint8_t *name, uint8_t name_length, uint8_t* selector) {
