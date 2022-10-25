@@ -207,7 +207,7 @@ class BoilerplateCommandBuilder:
                                 p2=0x00,
                                 cdata=hash)
 
-    def pedersen(self, a: bytes, b: bytes, nb: int) -> bytes:
+    def pedersen(self, a: bytes, b: bytes, nb: int, version: int) -> bytes:
 
         cdata: bytes = b"".join([
             a,
@@ -217,7 +217,7 @@ class BoilerplateCommandBuilder:
         return self.serialize(cla=self.CLA,
                               ins=InsType.INS_COMPUTE_PEDERSEN,
                               p1=nb,
-                              p2=0x00,
+                              p2=version,
                               cdata=cdata)
             
     def sign_tx(self, bip32_path: str, transaction: Transaction) -> Iterator[Tuple[bool, bytes]]:

@@ -35,7 +35,7 @@
 #include "../hash.h"
 #include "../helper/send_response.h"
 
-int handler_compute_pedersen(buffer_t *cdata, uint8_t n) { 
+int handler_compute_pedersen(buffer_t *cdata, uint8_t n, uint8_t version) { 
 	
 	explicit_bzero(&G_context, sizeof(G_context));
 	G_context.req_type = COMPUTE_PEDERSEN;
@@ -49,7 +49,7 @@ int handler_compute_pedersen(buffer_t *cdata, uint8_t n) {
 		
 		G_context.state = STATE_PARSED;
 		
-		call_pedersen(G_context.hash_info.m_hash, G_context.pn_info.ab, n);
+		call_pedersen(G_context.hash_info.m_hash, G_context.pn_info.ab, n, version);
 		
 		PRINTF("Hash Pedersen: %.*h\n", 32, G_context.hash_info.m_hash);
 		

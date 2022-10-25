@@ -126,9 +126,9 @@ class BoilerplateCommand:
 
         return r, s, v
 
-    def compute_pedersen(self, a: bytes, b: bytes, nb: int) -> bytes:
+    def compute_pedersen(self, a: bytes, b: bytes, nb: int, version: int) -> bytes:
 
-        chunk = self.builder.pedersen(a=a, b=b, nb=nb)
+        chunk = self.builder.pedersen(a=a, b=b, nb=nb, version=version)
 
         self.transport.send_raw(chunk)
 

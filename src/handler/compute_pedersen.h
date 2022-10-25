@@ -5,4 +5,4 @@
 
 #include "../common/buffer.h"
 
-int handler_compute_pedersen(buffer_t *cdata, uint8_t n);
+int handler_compute_pedersen(buffer_t *cdata, uint8_t n, uint8_t version);

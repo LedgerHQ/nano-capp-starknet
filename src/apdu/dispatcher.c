@@ -101,7 +101,7 @@ int apdu_dispatcher(const command_t *cmd) {
 			buf.size = cmd->lc;
 			buf.offset = 0;
 
-			return handler_compute_pedersen(&buf, cmd->p1);
+			return handler_compute_pedersen(&buf, cmd->p1, cmd->p2);
 			
         default:
             return io_send_sw(SW_INS_NOT_SUPPORTED);

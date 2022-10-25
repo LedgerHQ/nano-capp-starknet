@@ -6,22 +6,26 @@ import secrets
 from datetime import datetime
 
 # pedersen inputs
-#a: str = "07e00d496e324876bbc8531f2d9a82bf154d1a04a50218ee74cdd372f75a551a"
-#b: str = "0507446de5cfcb833d4e786f3a0510deb2429ae753741a836a7efa80c9c747cb"
+#a: str = "00784f8bae775d53ce5afdff7b1754e3863a2bd0332960a48ea56f2c1939d07d"
+#b: str = "03dec40fc1c0409adde42faeaa70f7e4af2784dca58a01f74e7f08c8d1dd75b4"
 
-N: int = 1
+V: int = 1
+N: int = 1 
 
 def test_pedersen(cmd, button, model):
     
-    ra = secrets.token_bytes(32)
-    a = starknet_keccak(data=ra)
+    #ra = secrets.token_bytes(32)
+    #a = starknet_keccak(data=ra)
 
-    rb = secrets.token_bytes(32)
-    b = starknet_keccak(data=rb)
+    #rb = secrets.token_bytes(32)
+    #b = starknet_keccak(data=rb)
 
+    a = int.from_bytes(bytes.fromhex("00784f8bae775d53ce5afdff7b1754e3863a2bd0332960a48ea56f2c1939d07d"), "big") 
+    b = int.from_bytes(bytes.fromhex("03dec40fc1c0409adde42faeaa70f7e4af2784dca58a01f74e7f08c8d1dd75b4"), "big")
+    
     start = datetime.now()
 
-    hash_nano = cmd.compute_pedersen(a=a.to_bytes(32, 'big'), b=b.to_bytes(32, 'big'), nb=N)
+    hash_nano = cmd.compute_pedersen(a=a.to_bytes(32, 'big'), b=b.to_bytes(32, 'big'), nb=N, version=V)
 
     end = datetime.now()
 
