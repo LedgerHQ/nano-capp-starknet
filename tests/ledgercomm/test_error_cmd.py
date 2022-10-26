@@ -17,7 +17,7 @@ def test_bad_cla(cmd):
 @pytest.mark.xfail(raises=InsNotSupportedError)
 def test_bad_ins(cmd):
     sw, _ = cmd.transport.exchange(cla=0x5a,
-                                   ins=0xff,  # bad INS
+                                   ins=0xfe,  # bad INS
                                    p1=0x00,
                                    p2=0x00,
                                    cdata=b"")

@@ -10,18 +10,18 @@ from datetime import datetime
 #b: str = "03dec40fc1c0409adde42faeaa70f7e4af2784dca58a01f74e7f08c8d1dd75b4"
 
 V: int = 1
-N: int = 1 
+N: int = 100 
 
 def test_pedersen(cmd, button, model):
     
-    #ra = secrets.token_bytes(32)
-    #a = starknet_keccak(data=ra)
+    ra = secrets.token_bytes(32)
+    a = starknet_keccak(data=ra)
 
-    #rb = secrets.token_bytes(32)
-    #b = starknet_keccak(data=rb)
+    rb = secrets.token_bytes(32)
+    b = starknet_keccak(data=rb)
 
-    a = int.from_bytes(bytes.fromhex("00784f8bae775d53ce5afdff7b1754e3863a2bd0332960a48ea56f2c1939d07d"), "big") 
-    b = int.from_bytes(bytes.fromhex("03dec40fc1c0409adde42faeaa70f7e4af2784dca58a01f74e7f08c8d1dd75b4"), "big")
+    #a = int.from_bytes(bytes.fromhex("00784f8bae775d53ce5afdff7b1754e3863a2bd0332960a48ea56f2c1939d07d"), "big") 
+    #b = int.from_bytes(bytes.fromhex("03dec40fc1c0409adde42faeaa70f7e4af2784dca58a01f74e7f08c8d1dd75b4"), "big")
     
     start = datetime.now()
 

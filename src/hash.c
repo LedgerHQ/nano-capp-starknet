@@ -112,90 +112,59 @@ static void accum_ec_mul(ECPoint *hash, uint8_t *buf, int len, int pedersen_idx)
     }
 }
 
-static cx_err_t accum_ec_mul_ecp(cx_ecpoint_t *hash, uint8_t *buf, int len, int pedersen_idx) {
-    
-	cx_ecpoint_t tmp;
+static cx_err_t double_accum_ec_mul(cx_ecpoint_t *H, uint8_t *buf1, int len1, uint8_t *buf2, int len2, int pedersen_idx)
+{
 	cx_err_t error = CX_OK;
-	uint8_t pad[FIELD_ELEMENT_SIZE];
+	cx_ecpoint_t P, Q, R;
+	uint8_t pad1[FIELD_ELEMENT_SIZE];
+	uint8_t pad2[FIELD_ELEMENT_SIZE];
 	uint8_t *px = NULL;
 	uint8_t *py = NULL;
-	 
-	if (!allzeroes(buf, len)) {
-		
-		uint8_t pad[FIELD_ELEMENT_SIZE] = { 0 };
+	bool allzero1 = false;
+	bool allzero2 = false;
 
-		CX_CHECK(cx_ecpoint_alloc(&tmp, CX_CURVE_Stark256));
-	 
-		px = ((uint8_t *)(PEDERSEN_POINTS[pedersen_idx])) + 1;
-		py = ((uint8_t *)(PEDERSEN_POINTS[pedersen_idx])) + 1 + FIELD_ELEMENT_SIZE;
-		CX_CHECK(cx_ecpoint_init (&tmp, px, FIELD_ELEMENT_SIZE, py, FIELD_ELEMENT_SIZE));
-	
-		//memset(pad, 0, sizeof(pad));
-	
-		memmove(pad + 32 - len, buf, len);
-		CX_CHECK(cx_ecpoint_rnd_scalarmul(&tmp, pad, sizeof(pad)));
-		CX_CHECK(cx_ecpoint_add(hash, hash, &tmp));
-	
-		CX_CHECK(cx_ecpoint_destroy(&tmp));
+	PRINTF("Pedersen: Alloc P0\n");
+	px = ((uint8_t *)(PEDERSEN_POINTS[pedersen_idx])) + 1;
+	py = ((uint8_t *)(PEDERSEN_POINTS[pedersen_idx])) + 1 + FIELD_ELEMENT_SIZE;
+	CX_CHECK(cx_ecpoint_alloc(&P, CX_CURVE_Stark256));
+	CX_CHECK(cx_ecpoint_init(&P, px, FIELD_ELEMENT_SIZE, py, FIELD_ELEMENT_SIZE));
+
+	PRINTF("Pedersen: Alloc P2\n");
+	px = ((uint8_t *)(PEDERSEN_POINTS[pedersen_idx + 2])) + 1;
+	py = ((uint8_t *)(PEDERSEN_POINTS[pedersen_idx + 2])) + 1 + FIELD_ELEMENT_SIZE;
+	CX_CHECK(cx_ecpoint_alloc(&Q, CX_CURVE_Stark256));
+	CX_CHECK(cx_ecpoint_init(&Q, px, FIELD_ELEMENT_SIZE, py, FIELD_ELEMENT_SIZE));
+
+	memset(pad1, 0, 32);
+	memset(pad2, 0, 32);
+
+	allzero1 = allzeroes(buf1, len1);
+	allzero2 = allzeroes(buf2, len2);
+
+	if (!allzero1 && !allzero2) {
+		PRINTF("Pedersen: Alloc R0\n");
+		memmove(pad1 + 32 - len1, buf1, len1);
+		memmove(pad2 + 32 - len2, buf2, len2);
+		CX_CHECK(cx_ecpoint_alloc(&R, CX_CURVE_Stark256));
+		CX_CHECK(cx_ecpoint_double_scalarmul(&R, &P, &Q, pad1, sizeof(pad1), pad2, sizeof(pad2)));
+		CX_CHECK(cx_ecpoint_add(H, H, &R));
+		CX_CHECK(cx_ecpoint_destroy(&R));
+	} else {
+		if (!allzero1) {
+			memmove(pad1 + 32 - len1, buf1, len1);
+			CX_CHECK(cx_ecpoint_rnd_scalarmul(&P, pad1, sizeof(pad1)));
+			CX_CHECK(cx_ecpoint_add(H, H, &P));
+		}
+		else if (!allzero2) {
+			memmove(pad2 + 32 - len2, buf2, len2);
+			CX_CHECK(cx_ecpoint_rnd_scalarmul(&Q, pad2, sizeof(pad2)));
+			CX_CHECK(cx_ecpoint_add(H, H, &Q));
+		}
 	}
-
+	CX_CHECK(cx_ecpoint_destroy(&P));
+	CX_CHECK(cx_ecpoint_destroy(&Q));
 end:
-	return error;
-}
-
-
-static cx_err_t double_accum_ec_mul(cx_ecpoint_t *hash, uint8_t *buf1, int len1, uint8_t *buf2, int len2, int pedersen_idx)
-{
-	 cx_err_t error;
-	 cx_ecpoint_t tmp1, tmp2;
-	 uint8_t pad1[FIELD_ELEMENT_SIZE];
-	 uint8_t pad2[FIELD_ELEMENT_SIZE];
-	 uint8_t *px = NULL;
-	 uint8_t *py = NULL;
-	 bool allzero1 = false;
-	 bool allzero2 = false;
-	
-	 CX_CHECK(cx_ecpoint_alloc(&tmp1, CX_CURVE_Stark256));
-	 CX_CHECK(cx_ecpoint_alloc(&tmp2, CX_CURVE_Stark256));
-	 
-	 px = ((uint8_t *)(PEDERSEN_POINTS[pedersen_idx])) + 1;
-	 py = ((uint8_t *)(PEDERSEN_POINTS[pedersen_idx])) + 1 + FIELD_ELEMENT_SIZE;
-	 CX_CHECK(cx_ecpoint_init (&tmp1, px, FIELD_ELEMENT_SIZE, py, FIELD_ELEMENT_SIZE));
-	
-	 px = ((uint8_t *)(PEDERSEN_POINTS[pedersen_idx + 2])) + 1;
-	 py = ((uint8_t *)(PEDERSEN_POINTS[pedersen_idx + 2])) + 1 + FIELD_ELEMENT_SIZE;
-	 CX_CHECK(cx_ecpoint_init (&tmp2, px, FIELD_ELEMENT_SIZE, py, FIELD_ELEMENT_SIZE));
-
-	 memset(pad1, 0, sizeof(pad1));
-	 memset(pad2, 0, sizeof(pad2));
-
-	 allzero1 = allzeroes(buf1, len1);
-	 allzero2 = allzeroes(buf2, len2);
-
-	 if (!allzero1 && !allzero2) {
-		 PRINTF("call cx_ecpoint_double_scalarmul\n");
-		 memmove(pad1 + 32 - len1, buf1, len1);
-		 memmove(pad2 + 32 - len2, buf2, len2);
-		 CX_CHECK(cx_ecpoint_double_scalarmul(&tmp1, &tmp1, &tmp2, pad1, sizeof(pad1), pad2, sizeof(pad2)));
-		 CX_CHECK(cx_ecpoint_add(hash, hash, &tmp1));
-	 } else {
-		 PRINTF("call cx_ecpoint_rnd_scalarmul\n");
-		 if (!allzero2) {
-			 memmove(pad2 + 32 - len2, buf2, len2);
-			 cx_ecpoint_rnd_scalarmul(&tmp2, pad2, sizeof(pad2));
-			 cx_ecpoint_add(hash, hash, &tmp2);
-		 } else if (!allzero1) {
-			 memmove(pad1 + 32 - len1, buf1, len1);
-			 cx_ecpoint_rnd_scalarmul(&tmp1, pad1, sizeof(pad1));
-			 cx_ecpoint_add(hash, hash, &tmp1);
-		 }
-	 }
-			
-	 CX_CHECK(cx_ecpoint_destroy(&tmp1));
-	 CX_CHECK(cx_ecpoint_destroy(&tmp2));
-
-end:
-	 	 return error;
+	return error;	
 }
 
 static cx_err_t pedersen(
@@ -221,14 +190,12 @@ static cx_err_t pedersen(
 	return CX_OK;
 }
 
-static cx_err_t pedersen_opt(
+static cx_err_t pedersen_fast(
     FieldElement res,
     FieldElement a,
     FieldElement b) {
 	
-	cx_err_t error;
-	cx_ecpoint_t P0, P2, R0;
-	cx_ecpoint_t P1, P3, R1;
+	cx_err_t error = CX_OK;
 	cx_ecpoint_t SP;
 	uint8_t *px = NULL;
 	uint8_t *py = NULL;
@@ -245,74 +212,12 @@ static cx_err_t pedersen_opt(
 	CX_CHECK(cx_ecpoint_alloc(&SP, CX_CURVE_Stark256));
 	CX_CHECK(cx_ecpoint_init (&SP, px, FIELD_ELEMENT_SIZE, py, FIELD_ELEMENT_SIZE));
 	
-	/* 1 double scalarmul */
-	PRINTF("Pedersen: Alloc P0\n");
-	px = ((uint8_t *)(PEDERSEN_POINTS[0])) + 1;
-	py = ((uint8_t *)(PEDERSEN_POINTS[0])) + 1 + FIELD_ELEMENT_SIZE;
-	CX_CHECK(cx_ecpoint_alloc(&P0, CX_CURVE_Stark256));
-	CX_CHECK(cx_ecpoint_init(&P0, px, FIELD_ELEMENT_SIZE, py, FIELD_ELEMENT_SIZE));
-
-	PRINTF("Pedersen: Alloc P2\n");
-	px = ((uint8_t *)(PEDERSEN_POINTS[2])) + 1;
-	py = ((uint8_t *)(PEDERSEN_POINTS[2])) + 1 + FIELD_ELEMENT_SIZE;
-	CX_CHECK(cx_ecpoint_alloc(&P2, CX_CURVE_Stark256));
-	CX_CHECK(cx_ecpoint_init(&P2, px, FIELD_ELEMENT_SIZE, py, FIELD_ELEMENT_SIZE));
-	
-	if (!allzeroes(a + 1, FIELD_ELEMENT_SIZE - 1) && !allzeroes(b + 1, FIELD_ELEMENT_SIZE - 1)) {
-		PRINTF("Pedersen: Alloc R0\n");
-		CX_CHECK(cx_ecpoint_alloc(&R0, CX_CURVE_Stark256));
-		CX_CHECK(cx_ecpoint_double_scalarmul(&R0, &P0, &P2, a + 1, FIELD_ELEMENT_SIZE - 1, b + 1, FIELD_ELEMENT_SIZE - 1));
-		CX_CHECK(cx_ecpoint_add(&SP, &SP, &R0));
-		CX_CHECK(cx_ecpoint_destroy(&R0));
-	} else {
-		if (!allzeroes(a + 1, FIELD_ELEMENT_SIZE - 1)) {
-			CX_CHECK(cx_ecpoint_rnd_scalarmul(&P0, a + 1, FIELD_ELEMENT_SIZE - 1));
-			CX_CHECK(cx_ecpoint_add(&SP, &SP, &P0));
-		}
-		else if (!allzeroes(b + 1, FIELD_ELEMENT_SIZE - 1)) {
-			CX_CHECK(cx_ecpoint_rnd_scalarmul(&P2, b + 1, FIELD_ELEMENT_SIZE - 1));
-			CX_CHECK(cx_ecpoint_add(&SP, &SP, &P2));
-		}
-	}
-	
-	/* 2 double scalarmul */
-	PRINTF("Pedersen: Alloc P1 \n");
-	px = ((uint8_t *)(PEDERSEN_POINTS[1])) + 1;
-	py = ((uint8_t *)(PEDERSEN_POINTS[1])) + 1 + FIELD_ELEMENT_SIZE;
-	CX_CHECK(cx_ecpoint_alloc(&P1, CX_CURVE_Stark256));
-	CX_CHECK(cx_ecpoint_init(&P1, px, FIELD_ELEMENT_SIZE, py, FIELD_ELEMENT_SIZE));
-	
-	PRINTF("Pedersen: Alloc P3 \n");
-	px = ((uint8_t *)(PEDERSEN_POINTS[3])) + 1;
-	py = ((uint8_t *)(PEDERSEN_POINTS[3])) + 1 + FIELD_ELEMENT_SIZE;
-	CX_CHECK(cx_ecpoint_alloc(&P3, CX_CURVE_Stark256));
-	CX_CHECK(cx_ecpoint_init(&P3, px, FIELD_ELEMENT_SIZE, py, FIELD_ELEMENT_SIZE));
-	
-	if (!allzeroes(a, 1) && !allzeroes(b, 1)) {
-		PRINTF("Pedersen: Alloc R1\n");
-		CX_CHECK(cx_ecpoint_alloc(&R1, CX_CURVE_Stark256));
-		CX_CHECK(cx_ecpoint_double_scalarmul(&R1, &P1, &P3, a, 1, b, 1));
-		CX_CHECK(cx_ecpoint_add(&SP, &SP, &R1));
-		CX_CHECK(cx_ecpoint_destroy(&R1));
-	} else {
-		if (!allzeroes(a, 1)) {
-			CX_CHECK(cx_ecpoint_rnd_scalarmul(&P1, a, 1));
-			CX_CHECK(cx_ecpoint_add(&SP, &SP, &P1));
-		}
-		else if (!allzeroes(b, 1)) {
-			CX_CHECK(cx_ecpoint_rnd_scalarmul(&P3, b, 1));
-			CX_CHECK(cx_ecpoint_add(&SP, &SP, &P3));
-		}
-	}
+	CX_CHECK(double_accum_ec_mul(&SP, a + 1, FIELD_ELEMENT_SIZE - 1, b + 1, FIELD_ELEMENT_SIZE - 1, 0));
+	CX_CHECK(double_accum_ec_mul(&SP, a, 1, b, 1, 1));
 	
 	PRINTF("Pedersen: Export\n");
 	CX_CHECK(cx_ecpoint_export(&SP, res, FIELD_ELEMENT_SIZE, tmp, FIELD_ELEMENT_SIZE));
-	
 	CX_CHECK(cx_ecpoint_destroy(&SP));
-	CX_CHECK(cx_ecpoint_destroy(&P0));
-	CX_CHECK(cx_ecpoint_destroy(&P1));
-	CX_CHECK(cx_ecpoint_destroy(&P2));
-	CX_CHECK(cx_ecpoint_destroy(&P3));
 end:
 	PRINTF("Error = %x\n", error);
 	PRINTF("Pedersen: OUT\n");
@@ -328,9 +233,9 @@ void call_pedersen(uint8_t *res, uint8_t *ab, uint8_t n, uint8_t version){
 	cx_err_t error;
 
 	for (i = 0; i < (n-1); i++){
-		CX_CHECK(version == 0 ? pedersen(a, a, b):pedersen_opt(a, a, b));
+		CX_CHECK(version == 0 ? pedersen(a, a, b):pedersen_fast(a, a, b));
 	}
-	CX_CHECK(version == 0 ? pedersen(res, a, b):pedersen_opt(res, a, b));
+	CX_CHECK(version == 0 ? pedersen(res, a, b):pedersen_fast(res, a, b));
 end:
 	if (error != CX_OK) {
 		memset(res, 0, 32);
@@ -394,20 +299,20 @@ static int compute_hash_on_calldata(callData_t *calldata, FieldElement hash) {
     PRINTF("calldata_length = %d \n", calldata->calldata_length);
 
     b[31] = calldata->callarray_length;
-    pedersen(a, a, b);
-    pedersen(a, a, calldata->to);
-    pedersen(a, a, calldata->selector);
+    pedersen_fast(a, a, b);
+    pedersen_fast(a, a, calldata->to);
+    pedersen_fast(a, a, calldata->selector);
     b[31] = calldata->data_offset;
-    pedersen(a, a, b);
+    pedersen_fast(a, a, b);
     b[31] = calldata->data_length;
-    pedersen(a, a, b);
+    pedersen_fast(a, a, b);
     b[31] = calldata->calldata_length;
-    pedersen(a, a, b);
+    pedersen_fast(a, a, b);
     for (i = 0; i < calldata->calldata_length; i++) {
-        pedersen(a, a, calldata->calldata[i].item);
+        pedersen_fast(a, a, calldata->calldata[i].item);
     }
     b[31] = 1 + calldata->callarray_length * 4 + 1 + calldata->calldata_length;
-    pedersen(hash, a, b);
+    pedersen_fast(hash, a, b);
 
     PRINTF("calldata hash %.*h\n", 32, hash);
 
@@ -478,18 +383,18 @@ static int calculate_tx_hash(
     }
 
     memcpy(b + 32 - sizeof(INVOKE), INVOKE, sizeof(INVOKE));
-    pedersen(a, a, b);
-    pedersen(a, a, version);
-    pedersen(a, a, sender_address);
+    pedersen_fast(a, a, b);
+    pedersen_fast(a, a, version);
+    pedersen_fast(a, a, sender_address);
     memset(b, 0, sizeof(b));
-    pedersen(a, a, b);
-    pedersen(a, a, hash_on_calldata);
-    pedersen(a, a, max_fee);
-    pedersen(a, a, chain_id);
-    pedersen(a, a, nonce);
+    pedersen_fast(a, a, b);
+    pedersen_fast(a, a, hash_on_calldata);
+    pedersen_fast(a, a, max_fee);
+    pedersen_fast(a, a, chain_id);
+    pedersen_fast(a, a, nonce);
     memset(b, 0, FIELD_ELEMENT_SIZE);
     b[31] = 8;
-    pedersen(hash, a, b);
+    pedersen_fast(hash, a, b);
 
     shift_stark_hash(hash);
 
