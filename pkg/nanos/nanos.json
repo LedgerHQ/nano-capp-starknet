@@ -1,6 +1,6 @@
 {
     "name": "STARKNET",
-    "version": "2.0.0",
+    "version": "2.1.0",
     "icon": "nanos_starknet.gif",
     "targetId": "0x31100004",
     "flags": "0x000",
