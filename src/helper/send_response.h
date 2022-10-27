@@ -40,4 +40,6 @@ int helper_send_response_pubkey(void);
  */
 int helper_send_response_sig(hash_ctx_t* hash_info);
 
+int helper_send_response_hash(hash_ctx_t* hash_info);
+
 int helper_send_response_ok(void);

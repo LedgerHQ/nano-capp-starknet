@@ -105,16 +105,69 @@ static void accum_ec_mul(ECPoint *hash, uint8_t *buf, int len, int pedersen_idx)
     if (!allzeroes(buf, len)) {
         uint8_t pad[32];
         memcpy(tmp, PEDERSEN_POINTS[pedersen_idx], sizeof(ECPoint));
-        //io_seproxyhal_io_heartbeat();
         memset(pad, 0, sizeof(pad));
         memmove(pad + 32 - len, buf, len);
         cx_ecfp_scalar_mult(CX_CURVE_Stark256, tmp, sizeof(ECPoint), pad, sizeof(pad));
-        //io_seproxyhal_io_heartbeat();
         cx_ecfp_add_point(CX_CURVE_Stark256, *hash, *hash, tmp, sizeof(ECPoint));
     }
 }
 
-static void pedersen(
+static cx_err_t double_accum_ec_mul(cx_ecpoint_t *H, uint8_t *buf1, int len1, uint8_t *buf2, int len2, int pedersen_idx)
+{
+	cx_err_t error = CX_OK;
+	cx_ecpoint_t P, Q, R;
+	uint8_t pad1[FIELD_ELEMENT_SIZE];
+	uint8_t pad2[FIELD_ELEMENT_SIZE];
+	uint8_t *px = NULL;
+	uint8_t *py = NULL;
+	bool allzero1 = false;
+	bool allzero2 = false;
+
+	PRINTF("Pedersen: Alloc P0\n");
+	px = ((uint8_t *)(PEDERSEN_POINTS[pedersen_idx])) + 1;
+	py = ((uint8_t *)(PEDERSEN_POINTS[pedersen_idx])) + 1 + FIELD_ELEMENT_SIZE;
+	CX_CHECK(cx_ecpoint_alloc(&P, CX_CURVE_Stark256));
+	CX_CHECK(cx_ecpoint_init(&P, px, FIELD_ELEMENT_SIZE, py, FIELD_ELEMENT_SIZE));
+
+	PRINTF("Pedersen: Alloc P2\n");
+	px = ((uint8_t *)(PEDERSEN_POINTS[pedersen_idx + 2])) + 1;
+	py = ((uint8_t *)(PEDERSEN_POINTS[pedersen_idx + 2])) + 1 + FIELD_ELEMENT_SIZE;
+	CX_CHECK(cx_ecpoint_alloc(&Q, CX_CURVE_Stark256));
+	CX_CHECK(cx_ecpoint_init(&Q, px, FIELD_ELEMENT_SIZE, py, FIELD_ELEMENT_SIZE));
+
+	memset(pad1, 0, 32);
+	memset(pad2, 0, 32);
+
+	allzero1 = allzeroes(buf1, len1);
+	allzero2 = allzeroes(buf2, len2);
+
+	if (!allzero1 && !allzero2) {
+		PRINTF("Pedersen: Alloc R0\n");
+		memmove(pad1 + 32 - len1, buf1, len1);
+		memmove(pad2 + 32 - len2, buf2, len2);
+		CX_CHECK(cx_ecpoint_alloc(&R, CX_CURVE_Stark256));
+		CX_CHECK(cx_ecpoint_double_scalarmul(&R, &P, &Q, pad1, sizeof(pad1), pad2, sizeof(pad2)));
+		CX_CHECK(cx_ecpoint_add(H, H, &R));
+		CX_CHECK(cx_ecpoint_destroy(&R));
+	} else {
+		if (!allzero1) {
+			memmove(pad1 + 32 - len1, buf1, len1);
+			CX_CHECK(cx_ecpoint_rnd_scalarmul(&P, pad1, sizeof(pad1)));
+			CX_CHECK(cx_ecpoint_add(H, H, &P));
+		}
+		else if (!allzero2) {
+			memmove(pad2 + 32 - len2, buf2, len2);
+			CX_CHECK(cx_ecpoint_rnd_scalarmul(&Q, pad2, sizeof(pad2)));
+			CX_CHECK(cx_ecpoint_add(H, H, &Q));
+		}
+	}
+	CX_CHECK(cx_ecpoint_destroy(&P));
+	CX_CHECK(cx_ecpoint_destroy(&Q));
+end:
+	return error;	
+}
+
+static cx_err_t pedersen(
     FieldElement res,
     FieldElement a,
     FieldElement b) {
@@ -133,8 +186,62 @@ static void pedersen(
     memcpy(res, hash + 1, FIELD_ELEMENT_SIZE);
     
     PRINTF("Pedersen: OUT\n");
+
+	return CX_OK;
 }
 
+static cx_err_t pedersen_fast(
+    FieldElement res,
+    FieldElement a,
+    FieldElement b) {
+	
+	cx_err_t error = CX_OK;
+	cx_ecpoint_t SP;
+	uint8_t *px = NULL;
+	uint8_t *py = NULL;
+	uint8_t tmp[32];
+	
+	PRINTF("Pedersen: IN\n");
+	
+	cx_bn_lock(32,0);
+
+	/* shift point */
+	PRINTF("Pedersen: Alloc Shift point \n");
+	px = ((uint8_t *)(PEDERSEN_SHIFT[0])) + 1;
+	py = ((uint8_t *)(PEDERSEN_SHIFT[0])) + 1 + FIELD_ELEMENT_SIZE;
+	CX_CHECK(cx_ecpoint_alloc(&SP, CX_CURVE_Stark256));
+	CX_CHECK(cx_ecpoint_init (&SP, px, FIELD_ELEMENT_SIZE, py, FIELD_ELEMENT_SIZE));
+	
+	CX_CHECK(double_accum_ec_mul(&SP, a + 1, FIELD_ELEMENT_SIZE - 1, b + 1, FIELD_ELEMENT_SIZE - 1, 0));
+	CX_CHECK(double_accum_ec_mul(&SP, a, 1, b, 1, 1));
+	
+	PRINTF("Pedersen: Export\n");
+	CX_CHECK(cx_ecpoint_export(&SP, res, FIELD_ELEMENT_SIZE, tmp, FIELD_ELEMENT_SIZE));
+	CX_CHECK(cx_ecpoint_destroy(&SP));
+end:
+	PRINTF("Error = %x\n", error);
+	PRINTF("Pedersen: OUT\n");
+	cx_bn_unlock();
+	return error;
+}
+
+void call_pedersen(uint8_t *res, uint8_t *ab, uint8_t n, uint8_t version){
+
+	uint8_t *a = ab;
+	uint8_t *b = ab + 32;
+	uint8_t i;
+	cx_err_t error;
+
+	for (i = 0; i < (n-1); i++){
+		CX_CHECK(version == 0 ? pedersen(a, a, b):pedersen_fast(a, a, b));
+	}
+	CX_CHECK(version == 0 ? pedersen(res, a, b):pedersen_fast(res, a, b));
+end:
+	if (error != CX_OK) {
+		memset(res, 0, 32);
+		memmove(res + 32 - 4, &error, 4); 
+	}
+}
 
 static int get_selector_from_name(uint8_t *name, uint8_t name_length, uint8_t* selector) {
     
@@ -192,20 +299,20 @@ static int compute_hash_on_calldata(callData_t *calldata, FieldElement hash) {
     PRINTF("calldata_length = %d \n", calldata->calldata_length);
 
     b[31] = calldata->callarray_length;
-    pedersen(a, a, b);
-    pedersen(a, a, calldata->to);
-    pedersen(a, a, calldata->selector);
+    pedersen_fast(a, a, b);
+    pedersen_fast(a, a, calldata->to);
+    pedersen_fast(a, a, calldata->selector);
     b[31] = calldata->data_offset;
-    pedersen(a, a, b);
+    pedersen_fast(a, a, b);
     b[31] = calldata->data_length;
-    pedersen(a, a, b);
+    pedersen_fast(a, a, b);
     b[31] = calldata->calldata_length;
-    pedersen(a, a, b);
+    pedersen_fast(a, a, b);
     for (i = 0; i < calldata->calldata_length; i++) {
-        pedersen(a, a, calldata->calldata[i].item);
+        pedersen_fast(a, a, calldata->calldata[i].item);
     }
     b[31] = 1 + calldata->callarray_length * 4 + 1 + calldata->calldata_length;
-    pedersen(hash, a, b);
+    pedersen_fast(hash, a, b);
 
     PRINTF("calldata hash %.*h\n", 32, hash);
 
@@ -276,18 +383,18 @@ static int calculate_tx_hash(
     }
 
     memcpy(b + 32 - sizeof(INVOKE), INVOKE, sizeof(INVOKE));
-    pedersen(a, a, b);
-    pedersen(a, a, version);
-    pedersen(a, a, sender_address);
+    pedersen_fast(a, a, b);
+    pedersen_fast(a, a, version);
+    pedersen_fast(a, a, sender_address);
     memset(b, 0, sizeof(b));
-    pedersen(a, a, b);
-    pedersen(a, a, hash_on_calldata);
-    pedersen(a, a, max_fee);
-    pedersen(a, a, chain_id);
-    pedersen(a, a, nonce);
+    pedersen_fast(a, a, b);
+    pedersen_fast(a, a, hash_on_calldata);
+    pedersen_fast(a, a, max_fee);
+    pedersen_fast(a, a, chain_id);
+    pedersen_fast(a, a, nonce);
     memset(b, 0, FIELD_ELEMENT_SIZE);
     b[31] = 8;
-    pedersen(hash, a, b);
+    pedersen_fast(hash, a, b);
 
     shift_stark_hash(hash);
 

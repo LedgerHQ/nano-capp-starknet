@@ -24,7 +24,8 @@ typedef enum {
     GET_APP_NAME = 0x01,    /// name of the application
     GET_PUBLIC_KEY = 0x02,  /// public key of corresponding EIP-2645 path
     SIGN_HASH = 0x03,
-    SIGN_TX = 0x04
+    SIGN_TX = 0x04,
+	GET_PEDERSEN = 0xFF
 } command_e;
 
 /**
@@ -54,7 +55,8 @@ typedef enum {
 typedef enum {
     CONFIRM_ADDRESS,     /// confirm address derived from public key
     CONFIRM_HASH,
-    CONFIRM_TRANSACTION  /// confirm transaction information
+    CONFIRM_TRANSACTION,  /// confirm transaction information
+	COMPUTE_PEDERSEN
 } request_type_e;
 
 /**
@@ -84,6 +86,10 @@ typedef struct {
     transaction_t transaction;            /// structured transaction
 } transaction_ctx_t;
 
+typedef struct {
+	uint8_t ab[64];
+} pedersen_ctx_t;
+
 /**
  * Structure for global context.
  */
@@ -92,6 +98,7 @@ typedef struct {
     union {
         pubkey_ctx_t pk_info;       /// public key context
         transaction_ctx_t tx_info;  /// transaction context
+		pedersen_ctx_t pn_info; 	/// pedersen context
     };
     hash_ctx_t hash_info;           /// hash context
     request_type_e req_type;              /// user request
